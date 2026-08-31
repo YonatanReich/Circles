@@ -81,6 +81,12 @@ Two decisions worth knowing about:
 - **Bands are painted outermost first**, so the innermost ends up on top. A
   hovered band therefore grows *outward only*, over a neighbour drawn earlier,
   and its swell is never clipped by the ring outside it.
+- **The hub readout is HTML overlaid on the circle**, not `<text>` inside it.
+  The viewBox is fixed, so SVG content scales with the rendered size and a 12px
+  caption became 6px on a phone. In HTML the sizes are real CSS pixels. The
+  inner radius is then derived from the SVG's measured width so the hub stays a
+  roughly constant number of real pixels — bigger in ring units on a small
+  screen, which is what keeps the count legible there.
 
 Ticking a checkbox selects; completing is a separate "Mark as done". Completed
 work stays restorable from the Completed section in the list view.

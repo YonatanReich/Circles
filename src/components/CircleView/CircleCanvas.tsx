@@ -3,6 +3,7 @@ import { DEFAULT_LAYOUT, goldColor, layoutRings, overdueColor, ringColor } from 
 import type { Ring } from '../../domain/rings'
 import { cx } from '../../lib/cx'
 import { halfMatches, type Filters } from '../../lib/filters'
+import { useElementWidth } from '../../lib/useElementWidth'
 import styles from './CircleCanvas.module.css'
 import type { Hover, RingHalf } from './types'
 
@@ -20,10 +21,38 @@ const HALF_DASH = '50 50'
 /** How far a hovered band swells. Outward only — see the paint-order note. */
 const GROW = 7
 
+/** Real pixels the hub must span to seat the count and its two captions. */
+const HUB_TARGET_PX = 124
+/** Ring units between the hub disc and the innermost band. */
+const HUB_INSET = 10
+
 export function CircleCanvas({ rings, filters, now, hover, onHover, onOpen }: Props) {
+  // The SVG itself, not its wrapper: the wrapper can be wider than the circle
+  // once the 700px cap bites, and sizing the hub off the wrapper then draws the
+  // readout for a larger disc than actually gets painted.
+  const [svgRef, svgWidth] = useElementWidth<SVGSVGElement>()
+
+  /*
+   * The viewBox is fixed, so a circle rendered at 350px draws everything at
+   * half scale — a hub sized in ring units would shrink to a coin on a phone.
+   * The inner radius is therefore derived from the actual rendered width, which
+   * keeps the hub roughly a constant number of real pixels and gives the
+   * readout room at any size. Clamped so it never crowds the bands on a large
+   * screen or leaves too little radius for them on a small one.
+   */
+  const scale = svgWidth > 0 ? svgWidth / VIEW : 1
+  const innerRadius = Math.min(
+    Math.max(DEFAULT_LAYOUT.innerRadius, HUB_TARGET_PX / 2 / scale + HUB_INSET),
+    150,
+  )
+
   const layout = useMemo(
-    () => layoutRings(rings.map((r) => ({ key: r.key, count: r.count }))),
-    [rings],
+    () =>
+      layoutRings(
+        rings.map((r) => ({ key: r.key, count: r.count })),
+        { ...DEFAULT_LAYOUT, innerRadius },
+      ),
+    [rings, innerRadius],
   )
 
   const overdueRing = rings.find((r) => r.isOverdue)
@@ -47,6 +76,7 @@ export function CircleCanvas({ rings, filters, now, hover, onHover, onOpen }: Pr
   return (
     <div className={styles.wrap}>
       <svg
+        ref={svgRef}
         className={styles.svg}
         viewBox={`${-VIEW / 2} ${-VIEW / 2} ${VIEW} ${VIEW}`}
         onMouseLeave={() => onHover(null)}
@@ -106,36 +136,42 @@ export function CircleCanvas({ rings, filters, now, hover, onHover, onOpen }: Pr
         })}
 
         {/* Last, so the innermost band can swell without touching the readout. */}
-        <circle className={styles.core} r={DEFAULT_LAYOUT.innerRadius - 10} />
+        <circle className={styles.core} r={innerRadius - HUB_INSET} />
+      </svg>
 
+      {/*
+       * The readout is HTML laid over the hub rather than <text> inside it.
+       * SVG text is scaled by the viewBox, so at phone size a 12px caption
+       * rendered at 6px; in HTML the sizes are real CSS pixels and hold at
+       * every screen size.
+       */}
+      <div
+        className={styles.hub}
+        style={{ width: (innerRadius - HUB_INSET) * 2 * scale }}
+        aria-live="polite"
+      >
         {hoveredRing && hover ? (
           <>
-            <text className={styles.coreValue} y={-6}>
-              {hoveredCount}
-            </text>
-            <text className={styles.coreLabel} y={16}>
+            <span className={styles.hubValue}>{hoveredCount}</span>
+            <span className={styles.hubLabel}>
               {hover.half === 'recurring' ? 'recurring' : 'tasks'}
-            </text>
-            <text className={cx(styles.coreLabel, styles.coreWhen)} y={34}>
+            </span>
+            <span className={cx(styles.hubLabel, styles.hubWhen)}>
               {hoveredRing.label.toLowerCase()}
-            </text>
+            </span>
           </>
         ) : (
           <>
-            <text className={styles.coreValue} y={-2}>
-              {todayRing?.count ?? 0}
-            </text>
-            <text className={styles.coreLabel} y={20}>
-              due today
-            </text>
+            <span className={styles.hubValue}>{todayRing?.count ?? 0}</span>
+            <span className={styles.hubLabel}>due today</span>
             {overdueRing && (
-              <text className={cx(styles.coreLabel, styles.coreOverdue)} y={38}>
+              <span className={cx(styles.hubLabel, styles.hubOverdue)}>
                 {overdueRing.count} overdue
-              </text>
+              </span>
             )}
           </>
         )}
-      </svg>
+      </div>
     </div>
   )
 }
