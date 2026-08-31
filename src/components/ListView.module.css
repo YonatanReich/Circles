@@ -54,6 +54,23 @@
   background: var(--surface-2);
 }
 
+@media (max-width: 640px) {
+  .list {
+    padding: var(--sp-3) var(--sp-2) var(--sp-6);
+  }
+
+  /* The selection bar would otherwise push the section heading off its row. */
+  .inlineBar {
+    flex-basis: 100%;
+    justify-content: flex-start;
+    margin-top: var(--sp-2);
+  }
+
+  .head {
+    flex-wrap: wrap;
+  }
+}
+
 .count {
   font-size: var(--fs-xs);
   color: var(--text-3);

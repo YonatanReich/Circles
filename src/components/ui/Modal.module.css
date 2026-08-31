@@ -17,7 +17,7 @@
   background: var(--surface);
   color: var(--text);
   max-width: calc(100vw - var(--sp-5));
-  max-height: calc(100vh - var(--sp-6));
+  max-height: calc(100dvh - var(--sp-6));
   overflow: hidden;
 
   opacity: 0;
@@ -96,8 +96,27 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-4);
   border-top: 1px solid var(--line);
   background: var(--surface);
+}
+
+/*
+ * The inline `width` prop is a desktop preference, not a floor. On a phone the
+ * dialog takes the screen so forms are not read through a letterbox.
+ */
+@media (max-width: 640px) {
+  .dialog {
+    width: 100% !important;
+    max-width: calc(100vw - var(--sp-3));
+    max-height: calc(100dvh - var(--sp-4));
+  }
+
+  .head,
+  .body,
+  .foot {
+    padding-inline: var(--sp-3);
+  }
 }

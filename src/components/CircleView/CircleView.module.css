@@ -16,14 +16,23 @@
   overflow-y: auto;
 }
 
-@media (max-width: 860px) {
+/* Side by side needs room for a 700px circle plus a 208px index; below that the
+   index goes underneath and the whole view scrolls as one column. */
+@media (max-width: 900px) {
   .view {
     flex-direction: column;
+    justify-content: flex-start;
+    gap: var(--sp-2);
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .aside {
     align-self: center;
+    flex: none;
+    width: 100%;
+    max-width: 420px;
     padding: 0 var(--sp-4) var(--sp-6);
+    overflow: visible;
   }
 }

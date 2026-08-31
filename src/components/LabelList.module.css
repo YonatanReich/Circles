@@ -100,6 +100,33 @@
   box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--text-2);
 }
 
+@media (max-width: 640px) {
+  .wrap {
+    padding: var(--sp-3) var(--sp-2) var(--sp-6);
+  }
+
+  .row {
+    padding: var(--sp-3);
+  }
+
+  /* Name and metadata stack rather than the count crushing the name. */
+  .row {
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: var(--sp-1);
+  }
+
+  .meta {
+    grid-column: 2;
+  }
+}
+
+@media (pointer: coarse) {
+  .swatch {
+    width: 32px;
+    height: 32px;
+  }
+}
+
 .warn {
   margin-top: var(--sp-2);
   font-size: var(--fs-xs);

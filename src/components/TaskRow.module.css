@@ -104,3 +104,26 @@
 .overdue {
   color: var(--danger);
 }
+
+/*
+ * On a phone the deadline drops below the title instead of competing with it
+ * for a 360px row, so the title keeps most of the width before truncating.
+ */
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 10px var(--sp-3) 10px var(--sp-3);
+    column-gap: var(--sp-2);
+  }
+
+  .due {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}

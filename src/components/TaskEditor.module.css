@@ -95,3 +95,20 @@
 .spacer {
   flex: 1;
 }
+
+@media (max-width: 640px) {
+  /* Weekday chips already wrap; the time field should not be dragged onto a
+     line of its own by a stale flex basis. */
+  .repeatBody {
+    gap: var(--sp-2) var(--sp-3);
+  }
+
+  .narrow {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .subtask {
+    column-gap: var(--sp-2);
+  }
+}

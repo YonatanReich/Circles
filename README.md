@@ -85,6 +85,16 @@ Two decisions worth knowing about:
 Ticking a checkbox selects; completing is a separate "Mark as done". Completed
 work stays restorable from the Completed section in the list view.
 
+**Responsive** at two breakpoints — 640px for phones, 900px for where the ring
+index stops sitting beside the circle and goes underneath it. Below 640px the
+segmented controls drop their joined seams and become wrapping chips (a
+six-button deadline picker cannot fit a 360px row), the filter bar collapses
+behind a toggle carrying its active count, and a task row puts its deadline
+under the title instead of competing for width. Touch sizing is keyed to
+`pointer: coarse` rather than viewport width, since a thumb on a large tablet
+needs the same target as a thumb on a phone. Heights use `dvh`, so a mobile
+browser's collapsing toolbar cannot strand the last row of a list.
+
 **Goals and tags** are two independent axes, and a task can carry any number of
 each. A goal is something you are working towards, so it can have a deadline and
 a description of its own; a tag is a plain label for what kind of work this is —

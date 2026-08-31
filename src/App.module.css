@@ -1,7 +1,9 @@
 .app {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  /* dvh, not vh: mobile browsers count their collapsing toolbar in vh, which
+     leaves the last rows of a list stranded under the address bar. */
+  height: 100dvh;
   min-height: 0;
 }
 
@@ -66,9 +68,39 @@
   font-size: var(--fs-sm);
 }
 
-@media (max-width: 620px) {
+/*
+ * Below 640px the view switch takes a row of its own, full width, so the four
+ * tabs stay reachable instead of being squeezed against the New task button.
+ * The account email is dropped — it is reference information, and Sign out
+ * still says who is in charge.
+ */
+@media (max-width: 640px) {
   .header {
     flex-wrap: wrap;
-    gap: var(--sp-3);
+    gap: var(--sp-2) var(--sp-3);
+    padding: var(--sp-3);
+  }
+
+  .header > :global(.segmented) {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .account {
+    display: none;
+  }
+
+  .spacer {
+    order: 2;
+  }
+
+  .brand {
+    order: 0;
+  }
+}
+
+@media (max-width: 380px) {
+  .brand {
+    display: none;
   }
 }

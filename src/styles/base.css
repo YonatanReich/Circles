@@ -203,9 +203,11 @@ input[type='checkbox']:disabled {
   margin-top: var(--sp-4);
 }
 
-/* Segmented control: one hairline box, no pills inside it. */
+/* Segmented control: one hairline box, no pills inside it.
+   Breakpoints used throughout: 640px is the phone edge, 900px the tablet edge. */
 .segmented {
   display: inline-flex;
+  max-width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
@@ -272,4 +274,65 @@ input[type='checkbox']:disabled {
   font-size: var(--fs-sm);
   padding: var(--sp-6) 0;
   text-align: center;
+}
+
+/* ---------------------------------------------------------------- phone --- */
+/*
+ * A joined segmented control cannot survive a 360px viewport — the deadline
+ * picker alone is six buttons wide. Rather than scroll it sideways, where the
+ * selected option can sit off-screen, the seams are dropped below 640px and the
+ * options become their own wrapping chips. Same control, same states, laid out
+ * for the space available.
+ */
+@media (max-width: 640px) {
+  .segmented {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .segmented > button,
+  .segmented > button:first-child {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+
+  .segmented > button[aria-pressed='true'] {
+    border-color: var(--line-strong);
+  }
+}
+
+/* ----------------------------------------------------------------- touch --- */
+/*
+ * Pointer-based, not width-based: a 15px checkbox is fine with a mouse at any
+ * window size and unusable with a thumb on a large tablet.
+ */
+@media (pointer: coarse) {
+  input[type='checkbox'] {
+    width: 20px;
+    height: 20px;
+  }
+
+  input[type='checkbox']:checked::before {
+    width: 4px;
+    height: 9px;
+    border-width: 0 2.5px 2.5px 0;
+  }
+
+  .btn,
+  .segmented > button {
+    min-height: 40px;
+    padding-block: 8px;
+  }
+
+  .input,
+  .textarea,
+  .select {
+    /* Under 16px, iOS Safari zooms the page on focus. */
+    font-size: 16px;
+    padding-block: 10px;
+  }
 }

@@ -7,6 +7,12 @@
   align-self: center;
 }
 
+@media (max-width: 900px) {
+  .index {
+    width: 100%;
+  }
+}
+
 .item {
   display: flex;
   align-items: stretch;

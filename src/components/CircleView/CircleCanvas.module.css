@@ -9,10 +9,26 @@
 }
 
 .svg {
-  width: min(76vh, 700px);
+  /* dvh so a phone's collapsing toolbar does not crop the outer ring. */
+  width: min(76dvh, 700px);
   max-width: 100%;
   height: auto;
   overflow: visible;
+}
+
+@media (max-width: 900px) {
+  .wrap {
+    padding: var(--sp-3);
+    /* Must not shrink: as a shrinkable column item it gets squashed while the
+       SVG keeps its intrinsic size, and the ring index rides up over the
+       circle. Fixed height, and the view scrolls instead. */
+    flex: none;
+  }
+
+  /* Stacked under the ring index, the circle has to leave room for it. */
+  .svg {
+    width: min(58dvh, 100%, 520px);
+  }
 }
 
 .core {

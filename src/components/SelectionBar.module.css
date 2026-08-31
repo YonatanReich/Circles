@@ -11,3 +11,12 @@
   color: var(--text-2);
   white-space: nowrap;
 }
+
+@media (max-width: 380px) {
+  /* "3 selected" is the first thing to give up when the buttons need the room. */
+  .count {
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

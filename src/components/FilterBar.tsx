@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { QUICK_PICKS } from '../domain/deadlines'
 import type { Goal, Tag } from '../domain/types'
+import { cx } from '../lib/cx'
 import { isFiltering, NO_FILTERS, type Filters } from '../lib/filters'
 import styles from './FilterBar.module.css'
 
@@ -22,6 +24,18 @@ export function FilterBar({
   onShowCompleted,
   showCompletedToggle,
 }: Props) {
+  /*
+   * Laid out flat, the horizon buttons plus every goal and tag chip run to three
+   * wrapped rows — over half a phone screen before any task is visible. Below
+   * 640px they collapse behind this toggle, which carries the active count so
+   * nothing is silently filtered. Above 640px the panel is `display: contents`
+   * and the desktop bar is exactly as it was.
+   */
+  const [open, setOpen] = useState(false)
+
+  const active =
+    filters.goalIds.length + filters.tagIds.length + (filters.withinDays === null ? 0 : 1)
+
   const toggle = (key: 'goalIds' | 'tagIds') => (id: string) =>
     onChange({
       ...filters,
@@ -35,61 +49,72 @@ export function FilterBar({
 
   return (
     <div className={styles.bar}>
-      <div className="segmented">
-        <button
-          type="button"
-          aria-pressed={filters.withinDays === null}
-          onClick={() => onChange({ ...filters, withinDays: null })}
-        >
-          Any time
-        </button>
-        {QUICK_PICKS.map((pick) => (
+      <button
+        type="button"
+        className={cx('btn', styles.toggle)}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        Filters{active > 0 && <span className={styles.badge}>{active}</span>}
+      </button>
+
+      <div className={cx(styles.panel, open && styles.panelOpen)}>
+        <div className="segmented">
           <button
-            key={pick.id}
             type="button"
-            aria-pressed={filters.withinDays === pick.days}
-            onClick={() => onChange({ ...filters, withinDays: pick.days })}
+            aria-pressed={filters.withinDays === null}
+            onClick={() => onChange({ ...filters, withinDays: null })}
           >
-            {pick.label}
+            Any time
           </button>
-        ))}
+          {QUICK_PICKS.map((pick) => (
+            <button
+              key={pick.id}
+              type="button"
+              aria-pressed={filters.withinDays === pick.days}
+              onClick={() => onChange({ ...filters, withinDays: pick.days })}
+            >
+              {pick.label}
+            </button>
+          ))}
+        </div>
+
+        {goals.length > 0 && (
+          <div className={styles.goals}>
+            {goals.map((goal) => (
+              <button
+                key={goal.id}
+                type="button"
+                className={styles.goal}
+                aria-pressed={filters.goalIds.includes(goal.id)}
+                onClick={() => toggleGoal(goal.id)}
+              >
+                <span className="dot" style={{ background: `var(--tone-${goal.color})` }} />
+                {goal.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {goals.length > 0 && tags.length > 0 && <span className={styles.divider} />}
+
+        {tags.length > 0 && (
+          <div className={styles.goals}>
+            {tags.map((tag) => (
+              <button
+                key={tag.id}
+                type="button"
+                className={styles.goal}
+                aria-pressed={filters.tagIds.includes(tag.id)}
+                onClick={() => toggleTag(tag.id)}
+              >
+                <span className="dot dot-hollow" style={{ color: `var(--tone-${tag.color})` }} />
+                {tag.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-
-      {goals.length > 0 && (
-        <div className={styles.goals}>
-          {goals.map((goal) => (
-            <button
-              key={goal.id}
-              type="button"
-              className={styles.goal}
-              aria-pressed={filters.goalIds.includes(goal.id)}
-              onClick={() => toggleGoal(goal.id)}
-            >
-              <span className="dot" style={{ background: `var(--tone-${goal.color})` }} />
-              {goal.name}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {goals.length > 0 && tags.length > 0 && <span className={styles.divider} />}
-
-      {tags.length > 0 && (
-        <div className={styles.goals}>
-          {tags.map((tag) => (
-            <button
-              key={tag.id}
-              type="button"
-              className={styles.goal}
-              aria-pressed={filters.tagIds.includes(tag.id)}
-              onClick={() => toggleTag(tag.id)}
-            >
-              <span className="dot dot-hollow" style={{ color: `var(--tone-${tag.color})` }} />
-              {tag.name}
-            </button>
-          ))}
-        </div>
-      )}
 
       <span className={styles.spacer} />
 
