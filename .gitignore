@@ -427,3 +427,21 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# ---- Vite / Node (Circles) ----
+dist/
+dist-ssr/
+*.local
+
+# Local env files. The VisualStudio "*.env" rule above does not match these.
+.env
+.env.*
+!.env.example
+
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+.vite/
+coverage/
+*.tsbuildinfo

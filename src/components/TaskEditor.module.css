@@ -1,0 +1,97 @@
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.inline {
+  margin-top: var(--sp-2);
+}
+
+.repeatBody {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+
+.smallField {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.smallLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.narrow {
+  width: auto;
+  min-width: 92px;
+}
+
+.note {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.goals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.goal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.goal:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.goal[aria-pressed='true'] {
+  background: var(--surface-3);
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.subtask {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.subTitle {
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subDone {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+.spacer {
+  flex: 1;
+}

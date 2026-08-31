@@ -1,0 +1,29 @@
+.view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-5);
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.aside {
+  display: flex;
+  align-items: center;
+  padding: var(--sp-4) 0;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+@media (max-width: 860px) {
+  .view {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .aside {
+    align-self: center;
+    padding: 0 var(--sp-4) var(--sp-6);
+  }
+}

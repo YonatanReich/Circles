@@ -1,0 +1,103 @@
+/*
+ * Entry and exit both animate. `@starting-style` supplies the "from" values for
+ * an element arriving from `display: none`, and `allow-discrete` lets `display`
+ * and `overlay` take part so the dialog stays painted on its way out instead of
+ * disappearing on the first frame.
+ */
+.dialog {
+  /* Scoped to [open]: an author `display` would otherwise beat the UA's
+     `dialog:not([open]) { display: none }` and leave a closed dialog visible. */
+  display: none;
+  flex-direction: column;
+
+  /* No padding: keeps the backdrop the only thing a stray click can hit. */
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  max-width: calc(100vw - var(--sp-5));
+  max-height: calc(100vh - var(--sp-6));
+  overflow: hidden;
+
+  opacity: 0;
+  transform: translateY(6px) scale(0.99);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease),
+    overlay var(--dur) var(--ease) allow-discrete, display var(--dur) var(--ease) allow-discrete;
+}
+
+.dialog[open] {
+  display: flex;
+  opacity: 1;
+  transform: none;
+}
+
+@starting-style {
+  .dialog[open] {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+}
+
+/* Held open while it fades, then unmounted by the parent. */
+.dialog[open].closing {
+  opacity: 0;
+  transform: translateY(6px) scale(0.99);
+  pointer-events: none;
+}
+
+.dialog::backdrop {
+  background: rgb(6 7 8 / 0);
+  transition: background var(--dur) var(--ease), overlay var(--dur) var(--ease) allow-discrete,
+    display var(--dur) var(--ease) allow-discrete;
+}
+
+.dialog[open]::backdrop {
+  background: rgb(6 7 8 / 0.72);
+}
+
+@starting-style {
+  .dialog[open]::backdrop {
+    background: rgb(6 7 8 / 0);
+  }
+}
+
+.dialog[open].closing::backdrop {
+  background: rgb(6 7 8 / 0);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+.body {
+  padding: var(--sp-4);
+  overflow-y: auto;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}

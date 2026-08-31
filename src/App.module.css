@@ -1,0 +1,74 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+
+/* A wordmark, not a logo. */
+.brand {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.account {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notice {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  cursor: help;
+  white-space: nowrap;
+}
+
+.main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.mainCircles {
+  display: flex;
+  overflow: hidden;
+}
+
+.error {
+  max-width: 560px;
+  margin: var(--sp-6) auto;
+  padding: var(--sp-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-wash);
+  font-size: var(--fs-sm);
+}
+
+@media (max-width: 620px) {
+  .header {
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+  }
+}

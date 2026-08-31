@@ -1,0 +1,275 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p,
+figure {
+  margin: 0;
+}
+
+/* Counts, times and day numbers must not jitter as they change. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--accent-wash);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ------------------------------------------------------------- buttons --- */
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.btn:hover {
+  background: var(--surface-3);
+  border-color: var(--line-strong);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #08131c;
+  font-weight: 500;
+}
+
+.btn-primary:hover {
+  background: oklch(0.84 0.11 235);
+  border-color: oklch(0.84 0.11 235);
+}
+
+.btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-2);
+}
+
+.btn-quiet:hover {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.btn-danger:hover {
+  background: var(--danger-wash);
+  border-color: var(--danger);
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------ checkbox --- */
+/* Drawn by hand rather than left to `accent-color`, which only tints the
+   checked state and leaves the empty box at the mercy of the platform. */
+
+input[type='checkbox'] {
+  appearance: none;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  display: inline-grid;
+  place-content: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+input[type='checkbox']:hover:not(:disabled) {
+  border-color: var(--text-3);
+}
+
+input[type='checkbox']:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+input[type='checkbox'][data-recurring]:checked {
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+input[type='checkbox']:checked::before {
+  content: '';
+  width: 3px;
+  height: 7px;
+  margin-top: -2px;
+  border: solid var(--bg);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+input[type='checkbox']:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---------------------------------------------------------- form fields --- */
+
+.label {
+  display: block;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: var(--sp-2);
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  appearance: none;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: 8px 10px;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.input:hover,
+.textarea:hover,
+.select:hover {
+  border-color: var(--line-strong);
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: var(--accent-dim);
+  outline: none;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 68px;
+  line-height: 1.55;
+}
+
+.select {
+  cursor: pointer;
+}
+
+.field + .field {
+  margin-top: var(--sp-4);
+}
+
+/* Segmented control: one hairline box, no pills inside it. */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.segmented > button {
+  appearance: none;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.segmented > button:first-child {
+  border-left: 0;
+}
+
+.segmented > button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.segmented > button[aria-pressed='true'] {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------ elements --- */
+
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* Tags. Same mark as a goal's, drawn as an outline — set `color`, not
+   `background`, and the ring picks up the tone. */
+.dot-hollow {
+  background: transparent !important;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.hr {
+  height: 1px;
+  background: var(--line);
+  border: 0;
+  margin: var(--sp-4) 0;
+}
+
+.muted {
+  color: var(--text-2);
+}
+
+.empty {
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+  padding: var(--sp-6) 0;
+  text-align: center;
+}

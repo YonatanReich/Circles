@@ -1,0 +1,83 @@
+.index {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 208px;
+  flex: none;
+  align-self: center;
+}
+
+.item {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-1);
+  transition: opacity var(--dur) var(--ease);
+}
+
+.dimmed {
+  opacity: 0.32;
+}
+
+.row {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  appearance: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  padding: 5px 8px;
+  cursor: pointer;
+  min-width: 0;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.row:disabled {
+  color: var(--text-3);
+  cursor: default;
+}
+
+.row:not(:disabled):hover,
+.row.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  appearance: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--gold-dim);
+  font: inherit;
+  font-size: var(--fs-xs);
+  padding: 0 7px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.gold:hover,
+.gold.active {
+  background: var(--gold-wash);
+  color: var(--gold);
+}

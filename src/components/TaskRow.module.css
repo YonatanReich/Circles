@@ -1,0 +1,106 @@
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 9px var(--sp-3) 9px var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  transition: background var(--dur-fast) var(--ease), opacity var(--dur) var(--ease);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row:hover {
+  background: var(--surface-2);
+}
+
+/* Importance is a rule in the margin, not a badge in the content. */
+.row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+}
+
+.row[data-importance='1']::before {
+  background: var(--accent-dim);
+}
+
+.row[data-importance='2']::before {
+  background: var(--accent);
+}
+
+.dimmed {
+  opacity: 0.3;
+}
+
+.completed .title {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+.main {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  min-width: 0;
+}
+
+.meta:empty {
+  display: none;
+}
+
+.label,
+.repeat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.repeat {
+  color: var(--gold-dim);
+}
+
+.due {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.overdue {
+  color: var(--danger);
+}

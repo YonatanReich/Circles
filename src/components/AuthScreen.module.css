@@ -1,0 +1,58 @@
+.screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: var(--sp-5);
+}
+
+.card {
+  width: 100%;
+  max-width: 360px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--sp-5);
+}
+
+.brand {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  text-align: center;
+}
+
+.modes {
+  display: flex;
+  width: 100%;
+  margin: var(--sp-5) 0 var(--sp-4);
+}
+
+.modes > button {
+  flex: 1;
+}
+
+.hint {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.error {
+  margin-top: var(--sp-4);
+  padding: var(--sp-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-wash);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.submit {
+  width: 100%;
+  margin-top: var(--sp-5);
+  padding: 9px 12px;
+}

@@ -1,0 +1,72 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+  min-height: 0;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.svg {
+  width: min(76vh, 700px);
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.core {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.coreValue {
+  fill: var(--text);
+  font-size: 34px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.coreLabel {
+  fill: var(--text-3);
+  font-size: 12px;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.coreWhen {
+  fill: var(--text-2);
+}
+
+.coreOverdue {
+  fill: var(--danger);
+}
+
+.band {
+  fill: none;
+  /* The stroke now spans the band's full width, so this covers the whole solid
+     area rather than a rim — while still keeping the two halves' hit regions
+     separate and leaving the hollow centre inert. */
+  pointer-events: stroke;
+  cursor: pointer;
+  transition: r var(--dur-ring) var(--ease), stroke-width var(--dur-ring) var(--ease),
+    stroke var(--dur) var(--ease), filter var(--dur) var(--ease);
+}
+
+.band:focus {
+  outline: none;
+}
+
+/* Solid areas need a firmer lift than a thin rim did to read as hovered. */
+.active {
+  filter: drop-shadow(0 0 12px var(--ring-color)) brightness(1.3) saturate(1.15);
+}
+
+.emptyBand {
+  pointer-events: none;
+  cursor: default;
+}
