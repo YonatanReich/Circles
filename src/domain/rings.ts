@@ -41,7 +41,7 @@ export interface Ring {
 }
 
 /** The skeleton: these rings render even when empty, so the scale stays learnable. */
-export const FIXED_HORIZON_DAYS = [0, 3, 7, BEYOND_DAYS]
+const FIXED_HORIZON_DAYS = [0, 3, 7, BEYOND_DAYS]
 
 const EMPTY_SET: ReadonlySet<string> = new Set()
 
@@ -49,10 +49,15 @@ export function fixedRingKeys(now: Date): string[] {
   return FIXED_HORIZON_DAYS.map((d) => dayKey(addDays(now, d)))
 }
 
-/** Groups the completion log by task for O(1) lookup during resolution. */
+/**
+ * Groups the *completed* days by task for O(1) lookup during resolution. Rows
+ * that only record a miss are skipped — a day someone explained away is still
+ * a day that did not happen, so it must not suppress the next occurrence.
+ */
 export function indexOccurrences(occurrences: Occurrence[]): Map<string, Set<string>> {
   const byTask = new Map<string, Set<string>>()
   for (const o of occurrences) {
+    if (!o.completedAt) continue
     let set = byTask.get(o.taskId)
     if (!set) byTask.set(o.taskId, (set = new Set()))
     set.add(o.date)
@@ -99,7 +104,7 @@ export function toRingTask(
  * than being folded into Today — including a task restored from Completed
  * whose deadline has since passed.
  */
-export function bucketKey(task: RingTask, now: Date): string {
+function bucketKey(task: RingTask, now: Date): string {
   if (task.isOverdue) return OVERDUE_KEY
   if (daysFromToday(task.effectiveDeadline, now) > BEYOND_DAYS) return BEYOND_KEY
   return dayKey(task.effectiveDeadline)
@@ -170,7 +175,7 @@ export function buildRings(
  * only the recent window is offered; restoring something from months ago is not
  * a mistake anyone is trying to undo.
  */
-export const RESTORE_WINDOW_DAYS = 14
+const RESTORE_WINDOW_DAYS = 14
 
 export function completedItems(
   tasks: Task[],
@@ -195,6 +200,7 @@ export function completedItems(
 
   const cutoff = addDays(now, -RESTORE_WINDOW_DAYS)
   for (const occurrence of occurrences) {
+    if (!occurrence.completedAt) continue
     const task = byId.get(occurrence.taskId)
     if (!task?.recurrence) continue
     const day = parseDayKey(occurrence.date)

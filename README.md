@@ -64,6 +64,7 @@ anything is drawn:
 | `sort.ts` | Deadline first, importance as the tiebreaker |
 | `rings.ts` | Bucketing tasks into rings, innermost first, plus the Completed list |
 | `geometry.ts` | Turning task counts into radii, thicknesses and colours |
+| `stats.ts` | Scoring outcomes, expanding a rule into the days it fired, streaks |
 
 Two decisions worth knowing about:
 
@@ -106,8 +107,37 @@ each. A goal is something you are working towards, so it can have a deadline and
 a description of its own; a tag is a plain label for what kind of work this is —
 health, financial, admin. On a task row a goal shows a filled dot and a tag a
 hollow one, the same mark drawn two ways, so the two stay legible without a
-legend. Within one axis the filters are an OR, across axes an AND.
+legend. Within one axis the filters are an OR, across axes an AND. Importance is a
+third axis under the same rules: pick High and Urgent to see both, pick none
+to see every level.
 
 Recurring tasks are never expanded into rows. `tasks.deadline` holds the first
-occurrence and the `occurrences` table logs completed instances, so an endless
+occurrence and the `occurrences` table logs judged instances, so an endless
 daily task stays one row.
+
+## Analysis
+
+**A missed deadline is derived, never stored.** A task counts as missed exactly
+while its deadline is in the past and it is not done, so pushing the deadline
+out un-fails it with no extra bookkeeping and no flag to keep in sync. What *is*
+stored is the explanation: `tasks.failure_reason` for a one-off, and an
+`occurrences` row with no `completed_at` for a single missed day of a habit.
+Those notes are what a coaching analysis will eventually be handed.
+
+Four outcomes, and the panel never averages them into one number without also
+showing them apart:
+
+| Outcome | Meaning |
+| --- | --- |
+| On time | Completed at or before the deadline |
+| Late | Completed, but after the deadline — done is not nothing |
+| Missed | Deadline passed, still not done |
+| Open | Deadline still ahead, not yet judged |
+
+One-off tasks are scored by deadline: "of the work that came due in the last 30
+days, how much landed". A habit is scored per day the rule fired, because one
+row can stand for ninety deadlines — a "10k steps daily" task shows as a strip
+of one cell per day, filled or hollow, next to its rate, current streak and best
+streak. A day whose scheduled time has not yet arrived is not counted as missed,
+and an unticked past day is a miss rather than a debt: the app never carries a
+habit forward.

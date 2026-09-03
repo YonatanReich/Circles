@@ -9,8 +9,10 @@ import {
 } from '../domain/deadlines'
 import { WEEKDAY_LABELS } from '../domain/recurrence'
 import type { RingTask } from '../domain/rings'
+import { outcomeOf } from '../domain/stats'
 import {
   IMPORTANCE_LABEL,
+  IMPORTANCE_LEVELS,
   type Goal,
   type Importance,
   type Recurrence,
@@ -36,6 +38,10 @@ interface Props {
   onAddSubtask: (taskId: string, title: string) => void
   onToggleSubtask: (id: string, done: boolean) => void
   onDeleteSubtask: (id: string) => void
+  /** Any reason already logged against the occurrence currently on show. */
+  occurrenceReason: string | null
+  /** Records why one dated instance of a recurring task was missed. */
+  onOccurrenceReason: (taskId: string, day: string, reason: string | null) => void
 }
 
 /** An existing deadline shows as a quick-pick only if it matches one exactly. */
@@ -58,6 +64,8 @@ export function TaskEditor({
   onAddSubtask,
   onToggleSubtask,
   onDeleteSubtask,
+  occurrenceReason,
+  onOccurrenceReason,
 }: Props) {
   const rec = task?.recurrence ?? null
   // Saving and cancelling close through the Modal so the exit animation runs;
@@ -80,10 +88,24 @@ export function TaskEditor({
     rec?.freq === 'weekly' ? rec.weekdays : [new Date(now).getDay()],
   )
   const [monthDay, setMonthDay] = useState(rec?.freq === 'monthly' ? rec.day : now.getDate())
-  const [time, setTime] = useState(rec?.time ?? '18:00')
+  const [time, setTime] = useState(rec?.time ?? '23:59')
 
   const [pending, setPending] = useState<string[]>([])
   const [draft, setDraft] = useState('')
+
+  /*
+   * A missed deadline is derived, not stored — the task is simply past its
+   * deadline and not done — so this field appears and disappears on its own as
+   * the deadline moves. The reason itself is kept once written, including after
+   * a late completion, because it explains something that really happened.
+   */
+  // A recurring task's `deadline` is its first occurrence ever, so the resolved
+  // `isOverdue` — which looks at the instance on show — is the right question.
+  const missed = !task ? false : task.recurrence ? task.isOverdue : outcomeOf(task, now) === 'missed'
+  const missedDay = task?.occurrenceDay ?? null
+  const storedReason = (missedDay ? occurrenceReason : task?.failureReason) ?? ''
+  const [failureReason, setFailureReason] = useState(storedReason)
+  const askWhy = !!task && (missed || storedReason !== '')
 
   const toggleId = (setIds: typeof setGoalIds) => (id: string) =>
     setIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
@@ -121,6 +143,11 @@ export function TaskEditor({
     // With a repeat rule the picker chooses the first occurrence's day and the
     // rule's own time supplies the hour.
     const deadline = recurrence ? combineDayAndTime(base, time) : base
+    // A recurring miss belongs to its day, not to the rule, so it goes to the
+    // occurrence log instead of riding along on the task.
+    if (askWhy && failureReason !== storedReason && missedDay && task) {
+      onOccurrenceReason(task.id, missedDay, failureReason.trim() || null)
+    }
     onSave({
       title: title.trim(),
       description: description.trim() || null,
@@ -129,6 +156,7 @@ export function TaskEditor({
       recurrence,
       goalIds,
       tagIds,
+      ...(askWhy && !missedDay ? { failureReason: failureReason.trim() || null } : {}),
       ...(task ? {} : { subtaskTitles: pending }),
     })
     close()
@@ -197,6 +225,21 @@ export function TaskEditor({
           />
         </div>
 
+        {askWhy && (
+          <div className={cx('field', styles.missed)}>
+            <label className="label" htmlFor="task-failure">
+              {missed ? 'Missed — what got in the way?' : 'What got in the way'}
+            </label>
+            <textarea
+              id="task-failure"
+              className="textarea"
+              value={failureReason}
+              onChange={(e) => setFailureReason(e.target.value)}
+              placeholder="Optional. Kept so the analysis panel can look for a pattern."
+            />
+          </div>
+        )}
+
         <div className="field">
           <span className="label">{recurrence ? 'First occurrence' : 'Deadline'}</span>
           <div className={styles.row}>
@@ -229,7 +272,7 @@ export function TaskEditor({
         <div className="field">
           <span className="label">Importance</span>
           <div className="segmented">
-            {([0, 1, 2] as Importance[]).map((level) => (
+            {IMPORTANCE_LEVELS.map((level) => (
               <button
                 key={level}
                 type="button"
@@ -284,7 +327,7 @@ export function TaskEditor({
               )}
 
               <label className={styles.smallField}>
-                <span className={styles.smallLabel}>At</span>
+                <span className={styles.smallLabel}>Until</span>
                 <input
                   type="time"
                   className={cx('input', styles.narrow)}

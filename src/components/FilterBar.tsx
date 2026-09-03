@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { QUICK_PICKS } from '../domain/deadlines'
-import type { Goal, Tag } from '../domain/types'
+import { IMPORTANCE_LABEL, IMPORTANCE_LEVELS, type Goal, type Importance, type Tag } from '../domain/types'
 import { cx } from '../lib/cx'
 import { isFiltering, NO_FILTERS, type Filters } from '../lib/filters'
 import styles from './FilterBar.module.css'
@@ -34,18 +34,18 @@ export function FilterBar({
   const [open, setOpen] = useState(false)
 
   const active =
-    filters.goalIds.length + filters.tagIds.length + (filters.withinDays === null ? 0 : 1)
+    filters.goalIds.length +
+    filters.tagIds.length +
+    filters.importance.length +
+    (filters.withinDays === null ? 0 : 1)
 
-  const toggle = (key: 'goalIds' | 'tagIds') => (id: string) =>
-    onChange({
-      ...filters,
-      [key]: filters[key].includes(id)
-        ? filters[key].filter((x) => x !== id)
-        : [...filters[key], id],
-    })
+  const toggled = <T,>(list: T[], value: T) =>
+    list.includes(value) ? list.filter((x) => x !== value) : [...list, value]
 
-  const toggleGoal = toggle('goalIds')
-  const toggleTag = toggle('tagIds')
+  const toggleGoal = (id: string) => onChange({ ...filters, goalIds: toggled(filters.goalIds, id) })
+  const toggleTag = (id: string) => onChange({ ...filters, tagIds: toggled(filters.tagIds, id) })
+  const toggleImportance = (level: Importance) =>
+    onChange({ ...filters, importance: toggled(filters.importance, level) })
 
   return (
     <div className={styles.bar}>
@@ -78,6 +78,24 @@ export function FilterBar({
             </button>
           ))}
         </div>
+
+        {/* Importance is an OR like goals and tags: High + Urgent shows both. */}
+        <div className={styles.goals}>
+          {IMPORTANCE_LEVELS.map((level) => (
+            <button
+              key={level}
+              type="button"
+              className={styles.goal}
+              aria-pressed={filters.importance.includes(level)}
+              onClick={() => toggleImportance(level)}
+            >
+              <span className={styles.pip} data-importance={level} />
+              {IMPORTANCE_LABEL[level]}
+            </button>
+          ))}
+        </div>
+
+        {(goals.length > 0 || tags.length > 0) && <span className={styles.divider} />}
 
         {goals.length > 0 && (
           <div className={styles.goals}>

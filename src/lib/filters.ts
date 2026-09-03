@@ -1,17 +1,25 @@
 import { daysFromToday } from '../domain/deadlines'
 import type { Ring, RingTask } from '../domain/rings'
+import type { Importance } from '../domain/types'
 
 export interface Filters {
   goalIds: string[]
   tagIds: string[]
+  /** Importance levels to keep. Empty means every level. */
+  importance: Importance[]
   /** Cumulative horizon — "due within N days". null means no limit. */
   withinDays: number | null
 }
 
-export const NO_FILTERS: Filters = { goalIds: [], tagIds: [], withinDays: null }
+export const NO_FILTERS: Filters = { goalIds: [], tagIds: [], importance: [], withinDays: null }
 
 export function isFiltering(filters: Filters): boolean {
-  return filters.goalIds.length > 0 || filters.tagIds.length > 0 || filters.withinDays !== null
+  return (
+    filters.goalIds.length > 0 ||
+    filters.tagIds.length > 0 ||
+    filters.importance.length > 0 ||
+    filters.withinDays !== null
+  )
 }
 
 /**
@@ -23,6 +31,9 @@ export function taskMatches(task: RingTask, filters: Filters, now: Date): boolea
     return false
   }
   if (filters.tagIds.length > 0 && !task.tagIds.some((id) => filters.tagIds.includes(id))) {
+    return false
+  }
+  if (filters.importance.length > 0 && !filters.importance.includes(task.importance)) {
     return false
   }
   if (filters.withinDays !== null && daysFromToday(task.effectiveDeadline, now) > filters.withinDays) {

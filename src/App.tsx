@@ -14,6 +14,7 @@ import { FilterBar } from './components/FilterBar'
 import { GoalsView } from './components/GoalsView'
 import { ListView } from './components/ListView'
 import { RingModal } from './components/RingModal'
+import { StatsView } from './components/StatsView'
 import { TagsView } from './components/TagsView'
 import { TaskEditor } from './components/TaskEditor'
 import { useAuth } from './lib/auth'
@@ -31,6 +32,7 @@ import {
   useDeleteSubtask,
   useDeleteTag,
   useDeleteTask,
+  useSetOccurrenceReason,
   useSetTasksDone,
   useToggleSubtask,
   useUpdateGoal,
@@ -38,11 +40,12 @@ import {
   useUpdateTask,
 } from './lib/queries'
 
-type View = 'circles' | 'list' | 'goals' | 'tags'
+type View = 'circles' | 'list' | 'stats' | 'goals' | 'tags'
 
 const VIEWS: { id: View; label: string }[] = [
   { id: 'circles', label: 'Circles' },
   { id: 'list', label: 'List' },
+  { id: 'stats', label: 'Analysis' },
   { id: 'goals', label: 'Goals' },
   { id: 'tags', label: 'Tags' },
 ]
@@ -89,6 +92,7 @@ function Board({ email }: { email: string | null }) {
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
   const setTasksDone = useSetTasksDone()
+  const setOccurrenceReason = useSetOccurrenceReason()
   const createGoal = useCreateGoal()
   const updateGoal = useUpdateGoal()
   const deleteGoal = useDeleteGoal()
@@ -136,6 +140,15 @@ function Board({ email }: { email: string | null }) {
   const editingTask = editingId && editingId !== 'new'
     ? (allTasks.find((t) => t.id === editingId) ?? null)
     : null
+
+  // A recurring task's missed-reason belongs to the day on show, not the rule,
+  // so it is looked up here rather than carried on the resolved task.
+  const editingReason =
+    editingTask?.occurrenceDay
+      ? (board.occurrences.find(
+          (o) => o.taskId === editingTask.id && o.date === editingTask.occurrenceDay,
+        )?.failureReason ?? null)
+      : null
 
   return (
     <div className={styles.app}>
@@ -212,6 +225,16 @@ function Board({ email }: { email: string | null }) {
             onRestore={(tasks) => setDone(tasks, false)}
             onOpenTask={(task) => setEditingId(task.id)}
           />
+        ) : view === 'stats' ? (
+          <StatsView
+            tasks={board.tasks}
+            occurrences={board.occurrences}
+            goals={board.goals}
+            now={now}
+            onOccurrenceReason={(taskId, date, reason) =>
+              setOccurrenceReason.mutate({ taskId, date, reason })
+            }
+          />
         ) : view === 'goals' ? (
           <GoalsView
             goals={board.goals}
@@ -265,6 +288,10 @@ function Board({ email }: { email: string | null }) {
           onAddSubtask={(taskId, title) => addSubtask.mutate({ taskId, title })}
           onToggleSubtask={(id, done) => toggleSubtask.mutate({ id, done })}
           onDeleteSubtask={(id) => deleteSubtask.mutate({ id })}
+          occurrenceReason={editingReason}
+          onOccurrenceReason={(taskId, date, reason) =>
+            setOccurrenceReason.mutate({ taskId, date, reason })
+          }
         />
       )}
     </div>

@@ -7,6 +7,8 @@ export const IMPORTANCE_LABEL: Record<Importance, string> = {
   2: 'Urgent',
 }
 
+export const IMPORTANCE_LEVELS: Importance[] = [0, 1, 2]
+
 /**
  * Recurrence rules are stored as jsonb on the task row. Occurrences are never
  * materialised — `nextOccurrence` derives the live one from the rule plus the
@@ -16,8 +18,6 @@ export type Recurrence =
   | { freq: 'daily'; time: string; until?: string | null }
   | { freq: 'weekly'; weekdays: number[]; time: string; until?: string | null }
   | { freq: 'monthly'; day: number; time: string; until?: string | null }
-
-export type RecurrenceFreq = Recurrence['freq']
 
 /**
  * The shared palette for goals and tags. Deliberately excludes anything gold —
@@ -45,6 +45,12 @@ export interface Task {
   /** Only meaningful for one-off tasks; recurring completion lives in `occurrences`. */
   completedAt: string | null
   recurrence: Recurrence | null
+  /**
+   * Why the deadline was missed, in the user's words. Kept even once the task
+   * is completed late or rescheduled — a missed deadline is a fact about the
+   * past, and this is the note explaining it.
+   */
+  failureReason: string | null
   createdAt: string
   goalIds: string[]
   tagIds: string[]
@@ -74,9 +80,16 @@ export interface Tag {
   createdAt: string
 }
 
-/** One completed instance of a recurring task, keyed by local calendar day. */
+/**
+ * One judged instance of a recurring task, keyed by local calendar day.
+ *
+ * `completedAt` set means the day was done. A row with `completedAt: null` and
+ * a reason records a day that was missed and annotated — absence of any row
+ * still just means outstanding, so nothing is materialised in advance.
+ */
 export interface Occurrence {
   taskId: string
   date: string
-  completedAt: string
+  completedAt: string | null
+  failureReason: string | null
 }

@@ -10,6 +10,7 @@ interface TaskRow {
   importance: number
   completed_at: string | null
   recurrence: Recurrence | null
+  failure_reason: string | null
   created_at: string
   task_goals: { goal_id: string }[] | null
   task_tags: { tag_id: string }[] | null
@@ -24,6 +25,13 @@ interface GoalRow {
   color: Goal['color']
   created_at: string
   archived_at: string | null
+}
+
+interface OccurrenceRow {
+  task_id: string
+  occurrence_date: string
+  completed_at: string | null
+  failure_reason: string | null
 }
 
 interface TagRow {
@@ -57,6 +65,7 @@ function toTask(row: TaskRow): Task {
     importance: row.importance as Importance,
     completedAt: row.completed_at,
     recurrence: row.recurrence,
+    failureReason: row.failure_reason,
     createdAt: row.created_at,
     goalIds: (row.task_goals ?? []).map((g) => g.goal_id),
     tagIds: (row.task_tags ?? []).map((t) => t.tag_id),
@@ -123,16 +132,19 @@ export const supabaseDb: Db = {
         ),
       supabase.from('goals').select('*').is('archived_at', null).order('created_at'),
       supabase.from('tags').select('*').order('name'),
-      supabase.from('occurrences').select('task_id, occurrence_date, completed_at'),
+      supabase.from('occurrences').select('task_id, occurrence_date, completed_at, failure_reason'),
     ])
 
     return {
       tasks: unwrap<TaskRow[]>(tasks).map(toTask),
       goals: unwrap<GoalRow[]>(goals).map(toGoal),
       tags: unwrap<TagRow[]>(tags).map(toTag),
-      occurrences: unwrap<{ task_id: string; occurrence_date: string; completed_at: string }[]>(
-        occurrences,
-      ).map((o) => ({ taskId: o.task_id, date: o.occurrence_date, completedAt: o.completed_at })),
+      occurrences: unwrap<OccurrenceRow[]>(occurrences).map((o) => ({
+        taskId: o.task_id,
+        date: o.occurrence_date,
+        completedAt: o.completed_at,
+        failureReason: o.failure_reason,
+      })),
     }
   },
 
@@ -164,9 +176,10 @@ export const supabaseDb: Db = {
   },
 
   async updateTask(id: string, patch: Partial<TaskInput>) {
-    const { goalIds, tagIds, subtaskTitles: _ignored, ...fields } = patch
-    if (Object.keys(fields).length > 0) {
-      unwrap(await supabase.from('tasks').update(fields).eq('id', id).select('id'))
+    const { goalIds, tagIds, subtaskTitles: _ignored, failureReason, ...fields } = patch
+    const row = failureReason === undefined ? fields : { ...fields, failure_reason: failureReason }
+    if (Object.keys(row).length > 0) {
+      unwrap(await supabase.from('tasks').update(row).eq('id', id).select('id'))
     }
     if (goalIds) await replaceGoalLinks(id, goalIds)
     if (tagIds) await replaceTagLinks(id, tagIds)
@@ -191,19 +204,56 @@ export const supabaseDb: Db = {
       unwrap(
         await supabase
           .from('occurrences')
-          .upsert({ task_id: taskId, occurrence_date: date }, { onConflict: 'task_id,occurrence_date' })
+          .upsert(
+            { task_id: taskId, occurrence_date: date, completed_at: new Date().toISOString() },
+            { onConflict: 'task_id,occurrence_date' },
+          )
           .select('task_id'),
       )
-    } else {
-      unwrap(
-        await supabase
-          .from('occurrences')
-          .delete()
-          .eq('task_id', taskId)
-          .eq('occurrence_date', date)
-          .select('task_id'),
-      )
+      return
     }
+    // Un-ticking clears the completion. The row itself only goes if it carries
+    // no reason — that note is the only copy and must survive a mis-click.
+    unwrap(
+      await supabase
+        .from('occurrences')
+        .update({ completed_at: null })
+        .eq('task_id', taskId)
+        .eq('occurrence_date', date)
+        .select('task_id'),
+    )
+    unwrap(
+      await supabase
+        .from('occurrences')
+        .delete()
+        .eq('task_id', taskId)
+        .eq('occurrence_date', date)
+        .is('completed_at', null)
+        .is('failure_reason', null)
+        .select('task_id'),
+    )
+  },
+
+  async setOccurrenceReason(taskId: string, date: string, reason: string | null) {
+    unwrap(
+      await supabase
+        .from('occurrences')
+        .upsert(
+          { task_id: taskId, occurrence_date: date, failure_reason: reason },
+          { onConflict: 'task_id,occurrence_date' },
+        )
+        .select('task_id'),
+    )
+    unwrap(
+      await supabase
+        .from('occurrences')
+        .delete()
+        .eq('task_id', taskId)
+        .eq('occurrence_date', date)
+        .is('completed_at', null)
+        .is('failure_reason', null)
+        .select('task_id'),
+    )
   },
 
   async createGoal(input: GoalInput) {

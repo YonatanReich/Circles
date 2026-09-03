@@ -1,0 +1,413 @@
+.wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: var(--sp-5) var(--sp-4) var(--sp-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.picker {
+  display: flex;
+}
+
+/* ----------------------------------------------------------------- hero --- */
+
+.hero {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: var(--sp-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.gauge {
+  width: 132px;
+  height: 132px;
+  flex: none;
+}
+
+.track,
+.arc,
+.arcLate {
+  fill: none;
+  stroke-width: 10;
+}
+
+.track {
+  stroke: var(--surface-3);
+}
+
+.arc {
+  stroke: var(--accent);
+  stroke-linecap: butt;
+}
+
+/* Late work is done work, so it shares the arc — just dimmer, at its tail. */
+.arcLate {
+  stroke: var(--accent-dim);
+}
+
+.gaugeText {
+  fill: var(--text);
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.heroBody {
+  min-width: 0;
+}
+
+.heroTitle {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.heroNote {
+  margin: 0 0 var(--sp-4);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+.heroNote strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statValue {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.stat[data-tone='ok'] .statValue {
+  color: var(--accent);
+}
+
+.stat[data-tone='warn'] .statValue {
+  color: var(--gold);
+}
+
+.stat[data-tone='bad'] .statValue {
+  color: var(--danger);
+}
+
+.statLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+/* ---------------------------------------------------------------- split --- */
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent-dim);
+  border-radius: var(--radius);
+}
+
+/* Gold means recurring everywhere else in the app; it means it here too. */
+.cardGold {
+  border-left-color: var(--gold-dim);
+}
+
+.cardTitle {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.cardPct {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.cardNote {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+/* -------------------------------------------------------------- sections --- */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.sub {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+/* --------------------------------------------------------------- habits --- */
+
+.habits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.habit {
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.habitHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.habitTitle {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.habitRule {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  color: var(--gold-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.habitPct {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+/* One cell per fired day. Wrapping rather than scrolling, so ninety days stay
+   on screen as a block whose shape is readable at a glance. */
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.cell {
+  width: 13px;
+  height: 13px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  appearance: none;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.cellDone {
+  background: var(--gold);
+  cursor: default;
+}
+
+.cellMissed {
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+/* A miss that has been explained is no longer an open question. */
+.cellNoted {
+  background: var(--danger-wash);
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+.cellMissed:hover:not(:disabled) {
+  transform: scale(1.2);
+}
+
+.cellOpen {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.habitMeta {
+  display: flex;
+  gap: var(--sp-4);
+  margin-top: var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.reason {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+
+.reasonActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+/* ---------------------------------------------------------------- goals --- */
+
+.goals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.goalRow {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) 2fr auto auto;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.goalName {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  transition: width var(--dur) var(--ease);
+}
+
+.goalPct {
+  min-width: 40px;
+  text-align: right;
+}
+
+.goalCount {
+  min-width: 52px;
+  text-align: right;
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+/* ---------------------------------------------------------------- notes --- */
+
+.notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.note {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--danger);
+  border-radius: var(--radius);
+}
+
+.noteHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.noteTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.noteWhen {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.noteReason {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: 1.55;
+}
+
+/* ---------------------------------------------------------------- phone --- */
+
+@media (max-width: 640px) {
+  .wrap {
+    padding: var(--sp-3) var(--sp-3) var(--sp-6);
+    gap: var(--sp-4);
+  }
+
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-4);
+    padding: var(--sp-4);
+  }
+
+  .gauge {
+    align-self: center;
+  }
+
+  .split {
+    grid-template-columns: 1fr;
+  }
+
+  .goalRow {
+    grid-template-columns: minmax(80px, 1fr) auto auto;
+  }
+
+  /* The bar is the first thing to go: the number carries the same information. */
+  .bar {
+    display: none;
+  }
+}
