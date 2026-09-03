@@ -15,6 +15,7 @@ function task(partial: Omit<Partial<Task>, 'deadline'> & { deadline: Date }): Ta
     importance: 0,
     completedAt: null,
     recurrence: null,
+    failureReason: null,
     createdAt: `2026-01-01T00:00:0${seq % 10}Z`,
     goalIds: [],
     tagIds: [],
@@ -165,7 +166,7 @@ describe('recurring tasks', () => {
   it('move to the next occurrence ring once ticked off', () => {
     const t = task({ deadline: at(1), recurrence: daily })
     const done = indexOccurrences([
-      { taskId: t.id, date: '2026-01-15', completedAt: '2026-01-15T09:00:00Z' },
+      { taskId: t.id, date: '2026-01-15', completedAt: '2026-01-15T09:00:00Z', failureReason: null },
     ])
     const rings = buildRings([t], NOW, done)
     expect(rings[0].key).toBe('2026-01-15')
@@ -204,7 +205,7 @@ describe('completedItems', () => {
     const t = task({ deadline: at(1), recurrence: { freq: 'daily', time: '09:00' } })
     const items = completedItems(
       [t],
-      [{ taskId: t.id, date: '2026-01-14', completedAt: '2026-01-14T09:30:00Z' }],
+      [{ taskId: t.id, date: '2026-01-14', completedAt: '2026-01-14T09:30:00Z', failureReason: null }],
       NOW,
     )
     expect(items).toHaveLength(1)
@@ -218,7 +219,7 @@ describe('completedItems', () => {
     const t = task({ deadline: at(1), recurrence: { freq: 'daily', time: '09:00' } })
     const items = completedItems(
       [t],
-      [{ taskId: t.id, date: '2025-11-02', completedAt: '2025-11-02T09:30:00Z' }],
+      [{ taskId: t.id, date: '2025-11-02', completedAt: '2025-11-02T09:30:00Z', failureReason: null }],
       NOW,
     )
     expect(items).toHaveLength(0)
@@ -227,7 +228,7 @@ describe('completedItems', () => {
   it('ignores occurrence rows whose task is gone', () => {
     const items = completedItems(
       [],
-      [{ taskId: 'missing', date: '2026-01-14', completedAt: '2026-01-14T09:30:00Z' }],
+      [{ taskId: 'missing', date: '2026-01-14', completedAt: '2026-01-14T09:30:00Z', failureReason: null }],
       NOW,
     )
     expect(items).toHaveLength(0)

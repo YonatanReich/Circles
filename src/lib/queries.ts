@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Board, GoalInput, TagInput, TaskInput } from './db'
 import { db } from './db'
 
-export const BOARD_KEY = ['board'] as const
+const BOARD_KEY = ['board'] as const
 
 export function useBoard() {
   return useQuery({
@@ -88,13 +88,26 @@ function applyDone(board: Board, { taskId, occurrenceDay }: ToggleArgs, done: bo
       completedAt: done ? new Date().toISOString() : null,
     }))
   }
+  const existing = board.occurrences.find((o) => o.taskId === taskId && o.date === occurrenceDay)
   const others = board.occurrences.filter(
     (o) => !(o.taskId === taskId && o.date === occurrenceDay),
   )
+  const failureReason = existing?.failureReason ?? null
+  if (done) {
+    return {
+      ...board,
+      occurrences: [
+        ...others,
+        { taskId, date: occurrenceDay, completedAt: new Date().toISOString(), failureReason },
+      ],
+    }
+  }
+  // A row carrying a reason survives un-ticking as a bare miss; the note is the
+  // only copy of what the user wrote.
   return {
     ...board,
-    occurrences: done
-      ? [...others, { taskId, date: occurrenceDay, completedAt: new Date().toISOString() }]
+    occurrences: failureReason
+      ? [...others, { taskId, date: occurrenceDay, completedAt: null, failureReason }]
       : others,
   }
 }
@@ -114,6 +127,28 @@ export function useSetTasksDone() {
       }
     },
     (board, { items, done }) => items.reduce((acc, item) => applyDone(acc, item, done), board),
+  )
+}
+
+/**
+ * Why one dated instance of a recurring task was missed. Passing null clears
+ * the note, which drops the row unless the day was also completed.
+ */
+export function useSetOccurrenceReason() {
+  return useBoardMutation<{ taskId: string; date: string; reason: string | null }>(
+    ({ taskId, date, reason }) => db.setOccurrenceReason(taskId, date, reason),
+    (board, { taskId, date, reason }) => {
+      const existing = board.occurrences.find((o) => o.taskId === taskId && o.date === date)
+      const others = board.occurrences.filter((o) => !(o.taskId === taskId && o.date === date))
+      const completedAt = existing?.completedAt ?? null
+      return {
+        ...board,
+        occurrences:
+          reason || completedAt
+            ? [...others, { taskId, date, completedAt, failureReason: reason }]
+            : others,
+      }
+    },
   )
 }
 

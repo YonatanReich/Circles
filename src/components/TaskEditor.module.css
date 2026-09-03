@@ -112,3 +112,10 @@
     column-gap: var(--sp-2);
   }
 }
+
+/* A missed deadline is stated, not decorated: the same red the overdue ring
+   uses, as a rule down the side rather than a banner. */
+.missed {
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--danger);
+}

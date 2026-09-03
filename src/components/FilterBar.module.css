@@ -41,6 +41,23 @@
   color: var(--text);
 }
 
+/* The same 2px rule the task row draws in its margin, so importance is a cue
+   learned once. Normal keeps a transparent pip so the three chips line up. */
+.pip {
+  width: 2px;
+  align-self: stretch;
+  border-radius: 1px;
+  background: transparent;
+}
+
+.pip[data-importance='1'] {
+  background: var(--accent-dim);
+}
+
+.pip[data-importance='2'] {
+  background: var(--accent);
+}
+
 .divider {
   width: 1px;
   align-self: stretch;

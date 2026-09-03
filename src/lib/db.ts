@@ -9,6 +9,8 @@ export interface TaskInput {
   deadline: string
   importance: Importance
   recurrence: Recurrence | null
+  /** Only ever written for a task whose deadline has already passed. */
+  failureReason?: string | null
   goalIds: string[]
   tagIds: string[]
   /** Checklist items typed while creating, before the task has an id. */
@@ -50,6 +52,11 @@ export interface Db {
   setTaskCompleted(id: string, completed: boolean): Promise<void>
   /** Ticks or un-ticks one dated instance of a recurring task. */
   setOccurrence(taskId: string, date: string, done: boolean): Promise<void>
+  /**
+   * Notes why one dated instance was missed. Writes an occurrence row with no
+   * completion, which is how a miss is distinguished from a day never reached.
+   */
+  setOccurrenceReason(taskId: string, date: string, reason: string | null): Promise<void>
 
   createGoal(input: GoalInput): Promise<void>
   updateGoal(id: string, patch: Partial<GoalInput>): Promise<void>

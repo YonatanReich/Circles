@@ -1,38 +1,223 @@
+/*
+ * A stone dropped in water. The form is the innermost circle of a concentric
+ * system, and a pale blue light leaves it and travels outward one ring at a
+ * time — on a ten second heartbeat, or the moment the card is hovered. Circles
+ * live in the ornament and in the vessel, never in the shape of a control,
+ * which keeps the app's low radius.
+ */
 .screen {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
   padding: var(--sp-5);
+  /* The pulse colour: lighter and calmer than the working accent, because it
+     is light through water rather than a thing to be read. `--glow` is the
+     same light spilling either side of the line. */
+  --pulse: oklch(0.86 0.08 235);
+  --glow: oklch(0.8 0.1 235 / 0.45);
+  /* The innermost circle. Ring diameters in AuthScreen.tsx start just outside
+     it, so the two have to be changed together. */
+  --card: 440px;
+}
+
+/* --------------------------------------------------------------- ripple --- */
+
+.ripple {
+  position: absolute;
+  inset: 0;
+  /* Clips rings far wider than the viewport without the page gaining a
+     scrollbar, and without trapping the form on a short screen. */
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/*
+ * Centred on the container's true middle, which is the card's middle.
+ * Deliberately not a centred grid: an auto track sizes to the *largest* ring
+ * and then sits at the container's start, which puts every ring's shared centre
+ * hundreds of pixels off from the card's.
+ */
+.ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  /* How far the light spills either side of this line when it passes, and what
+     the line falls back to once it has. */
+  --spill: 16px;
+  --rest: var(--line);
+}
+
+/*
+ * The line brightens and light spills either side of it, then both drain away.
+ * Colour and shadow only — both paint-only, so a dozen rings the size of a wall
+ * animate without a single layout pass.
+ *
+ * The shape of it is the whole point: the crest arrives in a sixth of the time
+ * it takes to fade, and the fade runs on a long tail rather than a UI ease, so
+ * it recedes like light in water instead of snapping off.
+ */
+@keyframes pulse {
+  0% {
+    border-color: var(--rest);
+    box-shadow: 0 0 0 0 transparent, inset 0 0 0 0 transparent;
+    animation-timing-function: cubic-bezier(0.15, 0.6, 0.3, 1);
+  }
+  18% {
+    border-color: var(--pulse);
+    box-shadow: 0 0 var(--spill) calc(var(--spill) / -4) var(--glow),
+      inset 0 0 var(--spill) calc(var(--spill) / -4) var(--glow);
+    animation-timing-function: cubic-bezier(0.35, 0, 0.5, 1);
+  }
+  100% {
+    border-color: var(--rest);
+    box-shadow: 0 0 0 0 transparent, inset 0 0 0 0 transparent;
+  }
+}
+
+/* Armed by React, which also decides when — every ten seconds, or on hovering
+   the card, and never while a wave is still crossing. */
+.rippling .ring,
+.rippling .card::after {
+  animation: pulse 500ms linear;
+}
+
+/* ----------------------------------------------------------------- card --- */
+
+.stack {
+  position: relative;
+  max-width: 100%;
 }
 
 .card {
-  width: 100%;
-  max-width: 360px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--card);
+  aspect-ratio: 1;
+  max-width: 100%;
+  /* Opaque, so the rings pass behind it and emerge from its edge. */
   background: var(--surface);
-  padding: var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+/*
+ * Ring zero, on its own layer.
+ *
+ * The flash cannot live on the card itself: it and the hover state want the
+ * same three properties, and an animation always beats a declaration — so
+ * hovering lit the card, then the wave's own fade-out dragged it dark again
+ * before handing it back. Here the flash only ever adds light on top of
+ * whatever the card is already doing.
+ */
+.card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  pointer-events: none;
+  /* A bloom rather than a strobe. It has to launch the wave without spiking
+     far above the lit-hover state, or the fade back down reads as the card
+     switching off. */
+  --spill: 44px;
+  --rest: transparent;
+}
+
+/*
+ * Hovering lifts the whole disc and sends a wave out with it. Transition-driven
+ * and nothing else touches these properties, so it lights up and stays lit for
+ * as long as the pointer is on it.
+ *
+ * Behind `hover: hover` — on a touch screen `:hover` sticks after a tap and the
+ * card would simply stay lit for good.
+ */
+@media (hover: hover) {
+  .card:hover {
+    background: var(--surface-2);
+    /* The same light the wave carries, so a hovered card reads as lit rather
+       than as a different state the ripple keeps interrupting. */
+    border-color: var(--pulse);
+    box-shadow: 0 0 100px -22px var(--glow), inset 0 0 80px -38px var(--glow);
+  }
+}
+
+/* Narrower than the disc, so no line ever reaches the curve. */
+.inner {
+  width: 272px;
+  max-width: 100%;
+  text-align: left;
 }
 
 .brand {
-  display: block;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-md);
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--text-2);
+  text-align: center;
+}
+
+.tagline {
+  margin-top: 6px;
+  color: var(--text-3);
+  font-size: var(--fs-sm);
   text-align: center;
 }
 
 .modes {
   display: flex;
   width: 100%;
-  margin: var(--sp-5) 0 var(--sp-4);
+  margin: var(--sp-4) 0;
 }
 
 .modes > button {
   flex: 1;
+}
+
+/* The fieldset is a disabling wrapper, not a visual one. */
+.fields {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.control {
+  position: relative;
+}
+
+/* Room for the reveal button, which sits inside the field rather than beside
+   it — a password box with something parked next to it always looks broken. */
+.password {
+  padding-right: 62px;
+}
+
+.reveal {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  padding: 0 10px;
+  appearance: none;
+  border: 0;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.reveal:hover {
+  color: var(--text);
+  background: var(--surface-2);
 }
 
 .hint {
@@ -41,18 +226,71 @@
   color: var(--text-3);
 }
 
-.error {
-  margin-top: var(--sp-4);
-  padding: var(--sp-3);
-  border: 1px solid var(--danger);
-  border-radius: var(--radius);
-  background: var(--danger-wash);
-  font-size: var(--fs-xs);
-  line-height: 1.5;
+.hintBad {
+  color: var(--danger);
 }
 
 .submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
   width: 100%;
-  margin-top: var(--sp-5);
+  margin-top: var(--sp-4);
   padding: 9px 12px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error {
+  /* Taken out of flow: an error is variable height, and anything that moves the
+     card would pull it off the centre the rings are drawn around. */
+  position: absolute;
+  top: calc(100% + var(--sp-4));
+  left: 50%;
+  transform: translateX(-50%);
+  width: 372px;
+  max-width: 100%;
+  padding: var(--sp-3);
+  border: 1px solid var(--danger);
+  border-left-width: 2px;
+  border-radius: var(--radius);
+  background: var(--danger-wash);
+  font-size: var(--fs-xs);
+  line-height: 1.55;
+}
+
+/*
+ * A disc has to be about 1.6× the form it holds, so below this it would either
+ * crop the fields or run off the screen. The card squares off and the rings
+ * carry the motif alone — the same system, minus the vessel.
+ */
+@media (max-width: 520px), (max-height: 660px) {
+  .card {
+    width: 372px;
+    aspect-ratio: auto;
+    padding: var(--sp-5) var(--sp-4);
+    border-radius: var(--radius);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rippling .ring,
+  .rippling .card::after {
+    animation: none;
+  }
 }

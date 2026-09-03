@@ -7,21 +7,27 @@ import type { Board, Db, GoalInput, TagInput, TaskInput } from './db'
  * the header states as much while it is in use.
  */
 export const LOCAL_KEY = 'circles.board.v1'
-const KEY = LOCAL_KEY
 
 const empty = (): Board => ({ tasks: [], goals: [], tags: [], occurrences: [] })
 
 function read(): Board {
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = localStorage.getItem(LOCAL_KEY)
     if (!raw) return empty()
     const parsed = JSON.parse(raw) as Partial<Board>
     return {
       // Each field is defaulted so a board saved before tags existed still loads.
-      tasks: (parsed.tasks ?? []).map((t) => ({ ...t, tagIds: t.tagIds ?? [] })),
+      tasks: (parsed.tasks ?? []).map((t) => ({
+        ...t,
+        tagIds: t.tagIds ?? [],
+        failureReason: t.failureReason ?? null,
+      })),
       goals: parsed.goals ?? [],
       tags: parsed.tags ?? [],
-      occurrences: parsed.occurrences ?? [],
+      occurrences: (parsed.occurrences ?? []).map((o) => ({
+        ...o,
+        failureReason: o.failureReason ?? null,
+      })),
     }
   } catch {
     return empty()
@@ -29,7 +35,7 @@ function read(): Board {
 }
 
 function write(board: Board): void {
-  localStorage.setItem(KEY, JSON.stringify(board))
+  localStorage.setItem(LOCAL_KEY, JSON.stringify(board))
 }
 
 function mutate(fn: (board: Board) => void): Promise<void> {
@@ -64,6 +70,7 @@ export const localDb: Db = {
         importance: input.importance,
         completedAt: null,
         recurrence: input.recurrence,
+        failureReason: null,
         createdAt: new Date().toISOString(),
         goalIds: input.goalIds,
         tagIds: input.tagIds,
@@ -86,6 +93,7 @@ export const localDb: Db = {
         if (patch.deadline !== undefined) task.deadline = patch.deadline
         if (patch.importance !== undefined) task.importance = patch.importance
         if (patch.recurrence !== undefined) task.recurrence = patch.recurrence
+        if (patch.failureReason !== undefined) task.failureReason = patch.failureReason
         if (patch.goalIds !== undefined) task.goalIds = patch.goalIds
         if (patch.tagIds !== undefined) task.tagIds = patch.tagIds
       }),
@@ -106,11 +114,26 @@ export const localDb: Db = {
 
   setOccurrence: (taskId: string, date: string, done: boolean) =>
     mutate((board) => {
+      const existing = board.occurrences.find((o) => o.taskId === taskId && o.date === date)
       const others = board.occurrences.filter((o) => !(o.taskId === taskId && o.date === date))
+      const reason = existing?.failureReason ?? null
       const next: Occurrence[] = done
-        ? [...others, { taskId, date, completedAt: new Date().toISOString() }]
-        : others
+        ? [...others, { taskId, date, completedAt: new Date().toISOString(), failureReason: reason }]
+        // Un-ticking drops the row, unless a reason was written on it — that
+        // note is the only copy, so the row stays behind as a bare miss.
+        : reason
+          ? [...others, { taskId, date, completedAt: null, failureReason: reason }]
+          : others
       board.occurrences = next
+    }),
+
+  setOccurrenceReason: (taskId: string, date: string, reason: string | null) =>
+    mutate((board) => {
+      const existing = board.occurrences.find((o) => o.taskId === taskId && o.date === date)
+      const others = board.occurrences.filter((o) => !(o.taskId === taskId && o.date === date))
+      const completedAt = existing?.completedAt ?? null
+      board.occurrences =
+        reason || completedAt ? [...others, { taskId, date, completedAt, failureReason: reason }] : others
     }),
 
   createGoal: (input: GoalInput) =>

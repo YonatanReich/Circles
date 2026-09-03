@@ -1,5 +1,7 @@
 import { addDays, endOfDay, set } from 'date-fns'
-import type { Goal, Importance, Recurrence, Tag, Task } from '../domain/types'
+import { combineDayAndTime, dayKey } from '../domain/deadlines'
+import { matchesRecurrence } from '../domain/recurrence'
+import type { Goal, Importance, Occurrence, Recurrence, Tag, Task } from '../domain/types'
 import type { Board } from '../lib/db'
 import { LOCAL_KEY } from '../lib/localDb'
 
@@ -9,8 +11,42 @@ import { LOCAL_KEY } from '../lib/localDb'
  * importance, a custom deadline between two horizons, one past a month, and
  * both flavours of recurrence.
  *
+ * It also lays down six weeks of history — settled one-off tasks and a run of
+ * ticked and missed habit days — so the analysis panel has something to score.
+ *
  * Only ever called in dev, and only against the local store.
  */
+const HISTORY_DAYS = 45
+
+/**
+ * Six weeks of habit days, ticked on a fixed pattern rather than at random so
+ * the same seed always produces the same panel. Every fourth day is skipped,
+ * every eleventh is skipped with a reason — enough to break a streak, leave a
+ * best streak worth showing, and give the reasons list something to hold.
+ */
+function history(tasks: Task[], now: Date): Occurrence[] {
+  const reasons = ['Ran out of time.', 'Was travelling.', 'Slept through the alarm.']
+  const out: Occurrence[] = []
+
+  for (const task of tasks) {
+    if (!task.recurrence) continue
+    let i = 0
+    for (let d = HISTORY_DAYS; d >= 1; d--) {
+      const day = addDays(now, -d)
+      if (!matchesRecurrence(day, task.recurrence)) continue
+      i++
+      const date = dayKey(day)
+      const completedAt = combineDayAndTime(day, task.recurrence.time)
+      if (i % 11 === 0) {
+        out.push({ taskId: task.id, date, completedAt: null, failureReason: reasons[i % 3] })
+      } else if (i % 4 !== 0) {
+        out.push({ taskId: task.id, date, completedAt: completedAt.toISOString(), failureReason: null })
+      }
+    }
+  }
+  return out
+}
+
 export function seedLocalBoard(now = new Date()): void {
   const day = (n: number) => endOfDay(addDays(now, n))
   const at = (n: number, hour: number, minute = 0) =>
@@ -60,6 +96,7 @@ export function seedLocalBoard(now = new Date()): void {
     importance: 0,
     completedAt: null,
     recurrence: null,
+    failureReason: null,
     createdAt: now.toISOString(),
     goalIds: [],
     tagIds: [],
@@ -111,15 +148,17 @@ export function seedLocalBoard(now = new Date()): void {
     // Past a month, so it collapses into the outermost ring.
     make('Renew passport', day(45)),
 
-    make('Standup notes', at(0, 9), {
+    // Habits start six weeks back so they have a record. The next occurrence is
+    // still today — the rule is searched forward from now, never from the start.
+    make('Standup notes', at(-HISTORY_DAYS, 9), {
       recurrence: { freq: 'daily', time: '09:00' },
       goalIds: ['goal-ship'],
     }),
-    make('Gym', at(0, 7), {
+    make('Gym', at(-HISTORY_DAYS, 7), {
       recurrence: { freq: 'weekly', weekdays: [1, 3, 5], time: '07:00' },
       goalIds: ['goal-health'],
     }),
-    make('Pay the rent', at(0, 12), {
+    make('Pay the rent', at(-HISTORY_DAYS, 12), {
       recurrence: { freq: 'monthly', day: 28, time: '12:00' },
       tagIds: ['tag-financial'],
     }),
@@ -127,8 +166,27 @@ export function seedLocalBoard(now = new Date()): void {
     make('Cancel the old subscription', at(-2, 9), {
       completedAt: at(-2, 10).toISOString(),
     }),
+
+    // Settled work, so the panel has one-off outcomes of every kind.
+    make('Send the invoice', at(-20, 17), {
+      completedAt: at(-21, 11).toISOString(),
+      goalIds: ['goal-ship'],
+      tagIds: ['tag-financial'],
+    }),
+    make('Update the CV', at(-12, 17), {
+      completedAt: at(-9, 22).toISOString(),
+      goalIds: ['goal-ship'],
+    }),
+    make('Book the flights', at(-6, 17), {
+      importance: 1,
+      goalIds: ['goal-health'],
+      failureReason: 'Kept putting it off until the cheap seats were gone.',
+    }),
+    make('Read the tenancy contract', at(-3, 17), {
+      tagIds: ['tag-admin'],
+    }),
   ]
 
-  const board: Board = { tasks, goals, tags, occurrences: [] }
+  const board: Board = { tasks, goals, tags, occurrences: history(tasks, now) }
   localStorage.setItem(LOCAL_KEY, JSON.stringify(board))
 }

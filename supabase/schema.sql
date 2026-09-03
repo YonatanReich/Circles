@@ -35,6 +35,10 @@ create table if not exists tasks (
   -- One-off completion only. Recurring completion lives in `occurrences`.
   completed_at timestamptz,
   recurrence  jsonb,
+  -- Why the deadline was missed. Free text, written after the fact and kept
+  -- even if the task is later completed or rescheduled — it is a record of what
+  -- happened, and the raw material for the coaching analysis.
+  failure_reason text,
   created_at  timestamptz not null default now()
 );
 
@@ -75,16 +79,28 @@ create table if not exists task_tags (
   primary key (task_id, tag_id)
 );
 
--- One row per completed instance of a recurring task. Absence means outstanding,
--- which is what keeps an endless daily task a single `tasks` row.
+-- One row per *judged* instance of a recurring task: completed_at set means it
+-- was done, failure_reason alone means the day was missed and the user said why.
+-- A day with no row at all is simply outstanding, which is what keeps an endless
+-- daily task a single `tasks` row — the schedule is still derived from the rule,
+-- never materialised.
 create table if not exists occurrences (
   id              uuid primary key default gen_random_uuid(),
   user_id         uuid not null default auth.uid() references auth.users (id) on delete cascade,
   task_id         uuid not null references tasks (id) on delete cascade,
   occurrence_date date not null,
-  completed_at    timestamptz not null default now(),
+  completed_at    timestamptz,
+  failure_reason  text,
   unique (task_id, occurrence_date)
 );
+
+-- ------------------------------------------------------------ migrations ---
+-- For databases created before these columns existed. No-ops on a fresh one.
+
+alter table tasks       add column if not exists failure_reason text;
+alter table occurrences add column if not exists failure_reason text;
+alter table occurrences alter column completed_at drop not null;
+alter table occurrences alter column completed_at drop default;
 
 -- --------------------------------------------------------------- indexes ---
 
