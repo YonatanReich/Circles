@@ -81,6 +81,26 @@ export interface Tag {
 }
 
 /**
+ * One completed pomodoro. The id is minted client-side when the round starts,
+ * so finishing it is an idempotent upsert — a round that ends while the tab is
+ * closed gets written on the next visit, once, under the same id.
+ *
+ * One goal and one subject at most: a round is a single block of focus, and
+ * attributing it to exactly one of each keeps the hour totals from double
+ * counting. The subject is a tag — "what kind of work", same as on a task.
+ */
+export interface Round {
+  id: string
+  /** ISO instant the work phase began. */
+  startedAt: string
+  /** Focused minutes, i.e. the work length — pauses are not counted. */
+  minutes: number
+  goalId: string | null
+  tagId: string | null
+  notes: string | null
+}
+
+/**
  * One judged instance of a recurring task, keyed by local calendar day.
  *
  * `completedAt` set means the day was done. A row with `completedAt: null` and

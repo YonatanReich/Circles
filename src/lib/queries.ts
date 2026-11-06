@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { Round } from '../domain/types'
 import type { Board, GoalInput, TagInput, TaskInput } from './db'
 import { db } from './db'
 
@@ -226,5 +227,24 @@ export function useDeleteSubtask() {
       ...board,
       tasks: board.tasks.map((t) => ({ ...t, subtasks: t.subtasks.filter((s) => s.id !== id) })),
     }),
+  )
+}
+
+// --------------------------------------------------------------- rounds ---
+
+export function useSaveRound() {
+  return useBoardMutation<Round>(
+    (round) => db.saveRound(round),
+    (board, round) => ({
+      ...board,
+      rounds: [...board.rounds.filter((r) => r.id !== round.id), round],
+    }),
+  )
+}
+
+export function useDeleteRound() {
+  return useBoardMutation<string>(
+    (id) => db.deleteRound(id),
+    (board, id) => ({ ...board, rounds: board.rounds.filter((r) => r.id !== id) }),
   )
 }

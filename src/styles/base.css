@@ -59,12 +59,23 @@ figure {
   border-radius: var(--radius);
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease);
+    color var(--dur-fast) var(--ease), box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease-out);
 }
 
-.btn:hover {
+/*
+ * Every control answers the pointer the same way: its hairline turns to neon,
+ * light spills off it, and it rises a pixel. Pressing settles it back down.
+ */
+.btn:hover:not(:disabled) {
   background: var(--surface-3);
-  border-color: var(--line-strong);
+  border-color: var(--neon-line);
+  box-shadow: 0 0 18px -6px var(--neon-glow);
+  transform: translateY(-1px);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .btn:disabled {
@@ -79,9 +90,10 @@ figure {
   font-weight: 500;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: oklch(0.84 0.11 235);
   border-color: oklch(0.84 0.11 235);
+  box-shadow: 0 0 22px -4px var(--neon-glow);
 }
 
 .btn-quiet {
@@ -90,13 +102,13 @@ figure {
   color: var(--text-2);
 }
 
-.btn-quiet:hover {
+.btn-quiet:hover:not(:disabled) {
   background: var(--surface-2);
-  border-color: var(--line);
   color: var(--text);
 }
 
-.btn-danger:hover {
+.btn-danger:hover:not(:disabled) {
+  box-shadow: 0 0 18px -6px var(--danger-wash);
   background: var(--danger-wash);
   border-color: var(--danger);
   color: var(--text);
@@ -118,11 +130,14 @@ input[type='checkbox'] {
   border-radius: var(--radius-sm);
   background: transparent;
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease-out);
 }
 
 input[type='checkbox']:hover:not(:disabled) {
-  border-color: var(--text-3);
+  border-color: var(--neon-line);
+  box-shadow: 0 0 10px -2px var(--neon-glow);
+  transform: scale(1.08);
 }
 
 input[type='checkbox']:checked {
@@ -172,17 +187,19 @@ input[type='checkbox']:disabled {
   font: inherit;
   font-size: var(--fs-sm);
   padding: 8px 10px;
-  transition: border-color var(--dur-fast) var(--ease);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
 .input:hover,
 .textarea:hover {
   border-color: var(--line-strong);
+  box-shadow: 0 0 14px -8px var(--neon-glow);
 }
 
 .input:focus,
 .textarea:focus {
-  border-color: var(--accent-dim);
+  border-color: var(--neon-line);
+  box-shadow: 0 0 0 3px oklch(0.76 0.12 238 / 0.1), 0 0 18px -8px var(--neon-glow);
   outline: none;
 }
 
@@ -217,7 +234,8 @@ input[type='checkbox']:disabled {
   padding: 6px 12px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+    box-shadow var(--dur) var(--ease), text-shadow var(--dur) var(--ease);
 }
 
 .segmented > button:first-child {
@@ -227,11 +245,15 @@ input[type='checkbox']:disabled {
 .segmented > button:hover {
   background: var(--surface-2);
   color: var(--text);
+  box-shadow: inset 0 -1px 0 var(--neon-line);
+  text-shadow: 0 0 12px var(--neon-glow);
 }
 
+/* The pressed tab keeps a neon underline, so the hover reads as a preview of it. */
 .segmented > button[aria-pressed='true'] {
   background: var(--surface-3);
   color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--neon);
 }
 
 /* ------------------------------------------------------------ elements --- */
@@ -256,6 +278,79 @@ input[type='checkbox']:disabled {
   font-size: var(--fs-sm);
   padding: var(--sp-6) 0;
   text-align: center;
+}
+
+/* -------------------------------------------------------------- chips --- */
+/* A toggleable label carrying a goal's dot or a tag's ring. */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease), box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease-out);
+}
+
+.chip:hover {
+  color: var(--text);
+  border-color: var(--neon-line);
+  box-shadow: 0 0 14px -6px var(--neon-glow);
+  transform: translateY(-1px);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--surface-3);
+  border-color: var(--neon-line);
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------- motion --- */
+
+/*
+ * Every screen and tab arrives the same way: up out of a slight blur. Put on
+ * the element that is swapped, keyed so React remounts it and the animation
+ * runs again.
+ */
+.enter {
+  /* `backwards`, not `both`: a fill left holding `transform` after the end
+     would make this the containing block for any position: fixed child. */
+  animation: enter var(--dur-slow) var(--ease-out) backwards;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(4px);
+  }
+}
+
+/*
+ * Moving between the hub and an app is a circle opening: the next screen is
+ * revealed through an expanding circle centred on the one that was clicked,
+ * and going back closes it again. The clip itself is animated from App.tsx,
+ * which knows where the click was; here the browser's default crossfade is
+ * switched off so only that circle moves.
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Closing: the screen being left sits on top and shrinks away. */
+html.vt-closing::view-transition-old(root) {
+  z-index: 1;
 }
 
 /* ---------------------------------------------------------------- phone --- */

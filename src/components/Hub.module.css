@@ -1,0 +1,300 @@
+/*
+ * Two circles adrift. Each bobs on its own slow cycle, out of phase with the
+ * other, inside a dashed orbit that turns once every couple of minutes. The
+ * hub is the one screen with nothing to do but choose, so it is allowed to
+ * move while you look at it — everywhere else, motion only answers you.
+ */
+.hub {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  --size: clamp(220px, 28vw, 300px);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.date {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.intro {
+  text-align: center;
+  padding: var(--sp-6) var(--sp-4) 0;
+}
+
+.brand {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-shadow: 0 0 24px var(--neon-glow);
+}
+
+.tagline {
+  margin-top: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+
+.orbs {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(56px, 9vw, 140px);
+  padding: var(--sp-6) var(--sp-4) var(--sp-7);
+}
+
+/* ---------------------------------------------------------------- float --- */
+
+.slot {
+  animation: float 7s ease-in-out infinite;
+  /* Negative delays start each orb mid-cycle, so they never move in step. */
+  animation-delay: calc(var(--i) * -3.4s);
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(-7px);
+  }
+  50% {
+    transform: translateY(7px);
+  }
+}
+
+/* ------------------------------------------------------------------ orb --- */
+
+.orb {
+  --c: var(--neon);
+  --g: var(--neon-glow);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: var(--size);
+  aspect-ratio: 1;
+  appearance: none;
+  padding: 0;
+  /* Neon at a whisper even at rest; hover brings it up to full. */
+  border: 1px solid oklch(0.76 0.12 238 / 0.24);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 0 50px -24px var(--g);
+  animation: arrive 700ms var(--ease-out) backwards;
+  animation-delay: calc(120ms + var(--i) * 110ms);
+  transition: transform var(--dur-slow) var(--ease-out), border-color var(--dur) var(--ease),
+    box-shadow var(--dur-slow) var(--ease), background var(--dur) var(--ease);
+}
+
+.rest {
+  --c: var(--break);
+  --g: var(--break-glow);
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+    filter: blur(6px);
+  }
+}
+
+/* The ripple a hovered orb sends out — the sign-in screen's wave, in small. */
+.orb::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  border: 1px solid var(--c);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes halo {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.32);
+  }
+}
+
+.orbit,
+.progress {
+  position: absolute;
+  inset: -22px;
+  width: calc(100% + 44px);
+  height: calc(100% + 44px);
+  fill: none;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.orbit {
+  stroke: var(--line-strong);
+  stroke-width: 0.35;
+  stroke-dasharray: 0.5 1.8;
+  animation: turn 140s linear infinite;
+  transition: stroke var(--dur) var(--ease);
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* A running timer draws itself onto the orbit. */
+.progress {
+  stroke: var(--c);
+  stroke-width: 0.8;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 2px var(--g));
+}
+
+.progress circle {
+  transition: stroke-dasharray 250ms linear;
+}
+
+.glyph {
+  width: 44px;
+  height: 44px;
+  margin-bottom: var(--sp-3);
+  color: var(--text-3);
+  transition: color var(--dur) var(--ease), transform var(--dur-slow) var(--ease-out),
+    filter var(--dur) var(--ease);
+}
+
+.glyph svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.glyph .pip {
+  fill: currentColor;
+  stroke: none;
+}
+
+.name {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  transition: color var(--dur) var(--ease);
+}
+
+.value {
+  font-size: clamp(30px, 3.4vw, 40px);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.caption {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.alert {
+  color: var(--danger);
+}
+
+/*
+ * Behind `hover: hover` so a tap on a phone does not leave an orb stuck lit.
+ * Keyboard focus gets the same treatment, so it is never the lesser path.
+ */
+@media (hover: hover) {
+  .orb:hover {
+    transform: scale(1.04);
+  }
+
+  .orb:hover::after {
+    animation: halo 1.8s var(--ease-out) infinite;
+  }
+}
+
+.orb:active {
+  transform: scale(0.98);
+}
+
+@media (hover: hover) {
+  .orb:hover,
+  .orb:focus-visible {
+    border-color: var(--c);
+    background: var(--surface-2);
+    box-shadow: 0 0 80px -16px var(--g), inset 0 0 60px -28px var(--g);
+  }
+
+  .orb:hover .orbit,
+  .orb:focus-visible .orbit {
+    stroke: var(--c);
+  }
+
+  .orb:hover .glyph,
+  .orb:focus-visible .glyph {
+    color: var(--c);
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 6px var(--g));
+  }
+
+  .orb:hover .name,
+  .orb:focus-visible .name {
+    color: var(--text);
+  }
+}
+
+.orb:focus-visible {
+  outline: none;
+}
+
+/* ---------------------------------------------------------------- phone --- */
+
+@media (max-width: 640px) {
+  .hub {
+    --size: 210px;
+  }
+
+  .intro {
+    padding-top: var(--sp-4);
+  }
+
+  .orbs {
+    flex-direction: column;
+    gap: 64px;
+    padding-block: var(--sp-6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slot,
+  .orb,
+  .orbit,
+  .orb:hover::after {
+    animation: none;
+  }
+}

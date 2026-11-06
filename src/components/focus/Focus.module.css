@@ -1,0 +1,957 @@
+/*
+ * The focus app. Same surfaces, hairlines and type as the task app; its own
+ * motif is the single ring — the dial, each round, the hover card's arrival —
+ * and its light is the neon that runs through the whole suite.
+ */
+
+.page {
+  width: min(100%, 920px);
+  margin: 0 auto;
+  padding: var(--sp-5) var(--sp-4) var(--sp-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.grow {
+  flex: 1;
+}
+
+.hint {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.heading {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.arrow {
+  width: 32px;
+  padding-inline: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.stepLabel {
+  min-width: 150px;
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+/* --------------------------------------------------------------- editor --- */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.timing {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 0.8fr;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+/* ---------------------------------------------------------------- timer --- */
+
+.timerView {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-4) var(--sp-7);
+}
+
+.dial {
+  --c: var(--neon);
+  --g: var(--neon-glow);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(420px, 82vw, 54dvh);
+  aspect-ratio: 1;
+  padding: 0;
+  appearance: none;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: transform var(--dur-slow) var(--ease-out), filter var(--dur) var(--ease);
+}
+
+.dialBreak {
+  --c: var(--break);
+  --g: var(--break-glow);
+}
+
+.dial svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+}
+
+.ticks {
+  stroke: var(--line-strong);
+  stroke-width: 8;
+  transition: stroke var(--dur) var(--ease);
+}
+
+.track {
+  fill: var(--surface);
+  stroke: var(--surface-3);
+  stroke-width: 10;
+  transition: fill var(--dur) var(--ease);
+}
+
+.arc {
+  stroke: var(--c);
+  stroke-width: 10;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 8px var(--g));
+  /* Matched to the timer's tick, so the arc creeps rather than steps. */
+  transition: stroke-dasharray 250ms linear, stroke var(--dur) var(--ease);
+}
+
+.headGroup {
+  transition: transform 250ms linear;
+}
+
+.head {
+  fill: var(--text);
+  stroke: var(--c);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px var(--c));
+}
+
+/* A running dial breathes: its light rises and falls on a slow four seconds. */
+.dialLive .arc {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  50% {
+    filter: drop-shadow(0 0 18px var(--g));
+  }
+}
+
+@media (hover: hover) {
+  .dial:hover {
+    transform: scale(1.015);
+  }
+
+  .dial:hover .ticks {
+    stroke: var(--c);
+  }
+
+  .dial:hover .track {
+    fill: var(--surface-2);
+  }
+}
+
+.dial:active {
+  transform: scale(0.99);
+}
+
+.dial:focus-visible {
+  outline: none;
+}
+
+.dial:focus-visible .ticks {
+  stroke: var(--c);
+}
+
+.readout {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.phase {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--c);
+  text-shadow: 0 0 14px var(--g);
+}
+
+.clock {
+  font-size: clamp(48px, 9vmin, 76px);
+  font-weight: 200;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.sub {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+
+.controls {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.controls :global(.btn) {
+  min-width: 112px;
+  padding-block: 8px;
+}
+
+.durations {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+
+.duration {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.duration :global(.input) {
+  width: 64px;
+  text-align: center;
+  padding-inline: 4px;
+}
+
+.duration :global(.input):disabled {
+  opacity: 0.5;
+}
+
+.durationSep {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+.todayStrip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease-out), color var(--dur) var(--ease);
+}
+
+.todayStrip:hover {
+  color: var(--text);
+  border-color: var(--neon-line);
+  box-shadow: 0 0 18px -8px var(--neon-glow);
+  transform: translateY(-1px);
+}
+
+.todayDots {
+  display: flex;
+  gap: 5px;
+}
+
+.miniDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--tone);
+  box-shadow: 0 0 6px -1px var(--tone);
+  animation: pop var(--dur-slow) var(--ease-out) backwards;
+}
+
+.miniEmpty {
+  --tone: var(--line-strong);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+
+/* --------------------------------------------------------------- rounds --- */
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+.summary strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.summarySep {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+/* One round, one ring, tinted by its goal. Hollow so stacks of them stay light. */
+.round {
+  --tone: var(--neon);
+  flex: none;
+  display: grid;
+  place-items: center;
+  appearance: none;
+  padding: 0;
+  border: 2px solid var(--tone);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 0 10px -4px var(--tone);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+
+.round:hover,
+.round:focus-visible {
+  transform: scale(1.18);
+  background: var(--surface-3);
+  box-shadow: 0 0 18px -2px var(--tone), inset 0 0 10px -4px var(--tone);
+  outline: none;
+}
+
+.lg {
+  width: 64px;
+  height: 64px;
+  font-size: var(--fs-md);
+  font-weight: 300;
+}
+
+.md {
+  width: 22px;
+  height: 22px;
+}
+
+.sm {
+  width: 11px;
+  height: 11px;
+  border-width: 1.5px;
+}
+
+.dayGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-5) var(--sp-4);
+  padding: var(--sp-5) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.dayItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  animation: pop var(--dur-slow) var(--ease-out) backwards;
+}
+
+.dayTime {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.addRound {
+  width: 64px;
+  height: 64px;
+  appearance: none;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: 24px;
+  font-weight: 200;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease),
+    transform var(--dur-slow) var(--ease-out), box-shadow var(--dur) var(--ease);
+}
+
+.addRound:hover {
+  border-color: var(--neon);
+  color: var(--neon);
+  transform: rotate(90deg) scale(1.08);
+  box-shadow: 0 0 18px -6px var(--neon-glow);
+}
+
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.weekday {
+  padding: var(--sp-2);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  transition: background var(--dur) var(--ease);
+}
+
+.cell:nth-of-type(7n) {
+  border-right: 0;
+}
+
+.week .cell {
+  min-height: 220px;
+}
+
+.month .cell {
+  min-height: 84px;
+}
+
+.cell:hover {
+  background: var(--surface-2);
+}
+
+/* Today wears a neon rule along its top edge. */
+.cellToday {
+  box-shadow: inset 0 2px 0 var(--neon);
+}
+
+.cellOutside {
+  opacity: 0.4;
+}
+
+.cellDay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 2px 4px;
+  margin: -2px -4px 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.cellDay:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+
+.cellToday .cellDay {
+  color: var(--neon);
+}
+
+.cellCount {
+  color: var(--text-3);
+}
+
+.cellDots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.week .cellDots {
+  gap: 7px;
+}
+
+/* ----------------------------------------------------------- hover card --- */
+
+.card {
+  position: fixed;
+  z-index: 10;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--neon-line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 1px oklch(0 0 0 / 0.4), 0 18px 50px -20px var(--neon-glow);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease), transform var(--dur-slow) var(--ease-out),
+    clip-path var(--dur-slow) var(--ease-out);
+}
+
+/* It irises open from the round it belongs to, like every other modal. */
+.cardAbove {
+  transform: translate(-50%, -100%) scale(0.94);
+  transform-origin: 50% 100%;
+  clip-path: circle(0% at 50% 100%);
+}
+
+.cardBelow {
+  transform: translate(-50%, 0) scale(0.94);
+  transform-origin: 50% 0;
+  clip-path: circle(0% at 50% 0);
+}
+
+.cardOn {
+  opacity: 1;
+}
+
+.cardOn.cardAbove {
+  transform: translate(-50%, -100%);
+  clip-path: circle(150% at 50% 100%);
+}
+
+.cardOn.cardBelow {
+  transform: translate(-50%, 0);
+  clip-path: circle(150% at 50% 0);
+}
+
+/* Already open: slide to the next round rather than closing and reopening. */
+.cardGlide {
+  transition: opacity var(--dur) var(--ease), transform var(--dur-slow) var(--ease-out),
+    clip-path var(--dur-slow) var(--ease-out), left var(--dur-slow) var(--ease-out),
+    top var(--dur-slow) var(--ease-out);
+}
+
+.cardHead {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.cardMins {
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+.cardTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  margin-top: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+
+.cardTags > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cardNotes {
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--line);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.cardEmpty {
+  color: var(--text-3);
+  font-style: italic;
+}
+
+/* ---------------------------------------------------------- performance --- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.filterSep {
+  width: 1px;
+  align-self: stretch;
+  margin-inline: var(--sp-1);
+  background: var(--line);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.stat:hover {
+  border-color: var(--neon-line);
+  box-shadow: 0 0 22px -12px var(--neon-glow);
+}
+
+.statLabel {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.statValue {
+  font-size: 30px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+.statNote {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.delta {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.up {
+  color: var(--neon);
+}
+
+.down {
+  color: var(--text-2);
+}
+
+.chart {
+  margin: 0;
+  padding: var(--sp-4) var(--sp-4) var(--sp-3) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.chartTitle {
+  margin: 0 0 var(--sp-4) var(--sp-1);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* Left padding is the y-axis gutter: grid labels sit in it, bars do not. */
+.plot {
+  position: relative;
+  height: 240px;
+  margin-left: 28px;
+}
+
+.grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px solid var(--line);
+}
+
+.gridLabel {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: -0.7em;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.bars,
+.xAxis {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+}
+
+.bars {
+  position: absolute;
+  inset: 0;
+}
+
+.barCol {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 100%;
+  cursor: default;
+  outline: none;
+}
+
+/* Thin, rounded only at the data end, anchored flat to the baseline. */
+.barFill {
+  width: min(56%, 44px);
+  height: var(--h);
+  min-height: 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--neon);
+  opacity: 0.82;
+  box-shadow: 0 0 16px -6px var(--neon-glow);
+  transform-origin: 50% 100%;
+  animation: grow 640ms var(--ease-out) backwards;
+  animation-delay: calc(var(--i) * 45ms);
+  transition: height var(--dur-slow) var(--ease-out), opacity var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+@keyframes grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+.barCol:hover .barFill,
+.barCol:focus-visible .barFill {
+  opacity: 1;
+  box-shadow: 0 0 24px -2px var(--neon-glow);
+}
+
+.barTip {
+  position: absolute;
+  bottom: calc(var(--h) + 10px);
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 10px;
+  border: 1px solid var(--neon-line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 6px) scale(0.94);
+  transition: opacity var(--dur) var(--ease), transform var(--dur-slow) var(--ease-out);
+}
+
+.barTip strong {
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.barCol:hover .barTip,
+.barCol:focus-visible .barTip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.xAxis {
+  margin: var(--sp-2) 0 0 28px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  text-align: center;
+}
+
+.conclusions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+}
+
+.lede {
+  font-size: var(--fs-md);
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.trendGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.trendTitle {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.trends {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.trend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  animation: global(enter) var(--dur-slow) var(--ease-out) backwards;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease-out);
+}
+
+.trend:hover {
+  border-color: var(--neon-line);
+  box-shadow: 0 0 22px -12px var(--neon-glow);
+  transform: translateX(3px);
+}
+
+.trendHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.trendName {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trendHours {
+  font-size: var(--fs-sm);
+}
+
+.trendText {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: 1.55;
+}
+
+/* ---------------------------------------------------------------- phone --- */
+
+@media (max-width: 640px) {
+  .page {
+    padding: var(--sp-3) var(--sp-3) var(--sp-6);
+  }
+
+  .stepLabel {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .stepper {
+    flex: 1 1 100%;
+  }
+
+  .timing {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .timing > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .week .cell {
+    min-height: 140px;
+    padding: var(--sp-1);
+  }
+
+  .month .cell {
+    min-height: 64px;
+    padding: 4px;
+  }
+
+  .week .cellDots {
+    gap: 4px;
+  }
+
+  .md {
+    width: 16px;
+    height: 16px;
+  }
+
+  .sm {
+    width: 8px;
+    height: 8px;
+  }
+
+  .lg,
+  .addRound {
+    width: 54px;
+    height: 54px;
+  }
+
+  .plot {
+    height: 200px;
+  }
+
+  .durations {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}

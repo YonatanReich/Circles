@@ -1,4 +1,9 @@
 /*
+ * A modal opens the way everything in Circles opens: as a circle. It irises
+ * out from its own centre while its neon edge comes up, and closes back into
+ * that point. `circle(120%)` at rest is wide enough to clear the corners and the
+ * glow, so the open box is never visibly clipped.
+ *
  * Entry and exit both animate. `@starting-style` supplies the "from" values for
  * an element arriving from `display: none`, and `allow-discrete` lets `display`
  * and `overlay` take part so the dialog stays painted on its way out instead of
@@ -12,58 +17,69 @@
 
   /* No padding: keeps the backdrop the only thing a stray click can hit. */
   padding: 0;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--neon-line);
   border-radius: var(--radius);
   background: var(--surface);
+  box-shadow: 0 0 0 1px oklch(0 0 0 / 0.4), 0 24px 70px -30px var(--neon-glow);
   color: var(--text);
   max-width: calc(100vw - var(--sp-5));
   max-height: calc(100dvh - var(--sp-6));
   overflow: hidden;
 
+  /* clip-path first: Modal.tsx reads the first duration to time the unmount. */
+  clip-path: circle(0% at 50% 50%);
   opacity: 0;
-  transform: translateY(6px) scale(0.99);
-  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease),
-    overlay var(--dur) var(--ease) allow-discrete, display var(--dur) var(--ease) allow-discrete;
+  transform: scale(0.97);
+  transition: clip-path var(--dur-slow) var(--ease-out), opacity var(--dur) var(--ease),
+    transform var(--dur-slow) var(--ease-out), overlay var(--dur-slow) var(--ease) allow-discrete,
+    display var(--dur-slow) var(--ease) allow-discrete;
 }
 
 .dialog[open] {
   display: flex;
+  clip-path: circle(120% at 50% 50%);
   opacity: 1;
   transform: none;
 }
 
 @starting-style {
   .dialog[open] {
+    clip-path: circle(0% at 50% 50%);
     opacity: 0;
-    transform: translateY(6px) scale(0.99);
+    transform: scale(0.97);
   }
 }
 
-/* Held open while it fades, then unmounted by the parent. */
+/* Held open while it closes, then unmounted by the parent. */
 .dialog[open].closing {
+  clip-path: circle(0% at 50% 50%);
   opacity: 0;
-  transform: translateY(6px) scale(0.99);
+  transform: scale(0.97);
   pointer-events: none;
 }
 
 .dialog::backdrop {
   background: rgb(6 7 8 / 0);
-  transition: background var(--dur) var(--ease), overlay var(--dur) var(--ease) allow-discrete,
-    display var(--dur) var(--ease) allow-discrete;
+  backdrop-filter: blur(0);
+  transition: background var(--dur-slow) var(--ease), backdrop-filter var(--dur-slow) var(--ease),
+    overlay var(--dur-slow) var(--ease) allow-discrete, display var(--dur-slow) var(--ease) allow-discrete;
 }
 
 .dialog[open]::backdrop {
-  background: rgb(6 7 8 / 0.72);
+  background: rgb(6 7 8 / 0.66);
+  backdrop-filter: blur(3px);
 }
 
 @starting-style {
   .dialog[open]::backdrop {
     background: rgb(6 7 8 / 0);
+    backdrop-filter: blur(0);
   }
 }
 
 .dialog[open].closing::backdrop {
   background: rgb(6 7 8 / 0);
+  backdrop-filter: blur(0);
 }
 
 .head {

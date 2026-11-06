@@ -65,6 +65,7 @@ anything is drawn:
 | `rings.ts` | Bucketing tasks into rings, innermost first, plus the Completed list |
 | `geometry.ts` | Turning task counts into radii, thicknesses and colours |
 | `stats.ts` | Scoring outcomes, expanding a rule into the days it fired, streaks |
+| `pomodoro.ts` | Day/week/month periods (weeks start Sunday), chart bars, the trend report |
 
 Two decisions worth knowing about:
 
@@ -141,3 +142,35 @@ of one cell per day, filled or hollow, next to its rate, current streak and best
 streak. A day whose scheduled time has not yet arrived is not counted as missed,
 and an unticked past day is a miss rather than a debt: the app never carries a
 habit forward.
+
+## Focus
+
+Circles is a suite: after signing in you land on a hub of floating circles, one
+per app. **Tasks** is everything above; **Focus** is a pomodoro timer. Opening
+an app reveals it through a circle expanding from the one you clicked, and the
+wordmark in the header closes it back down (View Transitions API; browsers
+without it just swap screens).
+
+**Upgrading an existing database:** re-run `supabase/schema.sql`. It adds the
+`rounds` table and its policy; the app's first load fails until it exists.
+
+- **Timer.** Work and break lengths are yours to set between rounds. The timer
+  is wall-clock and stored in `localStorage`, so it survives reloads and keeps
+  running — and chiming — while you are in Tasks, where the header shows it as
+  a live chip. A finished round is saved the moment it ends; the "Round
+  complete" dialog only adds a goal, a subject and what you did, and suggests
+  the previous round's goal and subject.
+- **Rounds.** Day, week and month views, one ring per round tinted by its goal.
+  Hover one for what was done; click to edit; "Log a round" adds one after the
+  fact.
+- **Performance.** Rounds per day (weekly) or per week (monthly), filterable by
+  goal and subject, plus the hours per goal and subject against the previous
+  period. While a period is still running it is compared with the previous one
+  *up to the same point*, so the 5th of the month is not "down 80%".
+
+A round has at most one goal and one subject (a tag), so hours never double
+count. The conclusions are a `TrendReport` from `buildTrends()` — versioned,
+JSON-safe, carrying the same sentences the panel shows — derived from the
+rounds on demand rather than stored, so a round logged retroactively can never
+leave a saved trend wrong. `JSON.stringify(report)` plus the rounds' notes is
+the payload for the coaching LLM.

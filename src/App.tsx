@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import {
   buildRings,
   completedItems,
@@ -7,11 +8,15 @@ import {
   type RingTask,
 } from './domain/rings'
 import styles from './App.module.css'
+import { AppHeader } from './components/AppHeader'
 import { AuthScreen } from './components/AuthScreen'
 import { CircleView } from './components/CircleView/CircleView'
 import type { RingHalf } from './components/CircleView/types'
 import { FilterBar } from './components/FilterBar'
+import { FocusApp } from './components/focus/FocusApp'
+import { RoundEditor } from './components/focus/RoundEditor'
 import { GoalsView } from './components/GoalsView'
+import { Hub } from './components/Hub'
 import { ListView } from './components/ListView'
 import { RingModal } from './components/RingModal'
 import { StatsView } from './components/StatsView'
@@ -19,9 +24,10 @@ import { TagsView } from './components/TagsView'
 import { TaskEditor } from './components/TaskEditor'
 import { useAuth } from './lib/auth'
 import { cx } from './lib/cx'
-import { db, type Board } from './lib/db'
+import { type Board } from './lib/db'
 import { NO_FILTERS, type Filters } from './lib/filters'
-import { signOut } from './lib/supabase'
+import { useNow } from './lib/useNow'
+import { usePomodoro, type Pomodoro } from './lib/usePomodoro'
 import {
   useAddSubtask,
   useBoard,
@@ -29,9 +35,11 @@ import {
   useCreateTag,
   useCreateTask,
   useDeleteGoal,
+  useDeleteRound,
   useDeleteSubtask,
   useDeleteTag,
   useDeleteTask,
+  useSaveRound,
   useSetOccurrenceReason,
   useSetTasksDone,
   useToggleSubtask,
@@ -50,17 +58,7 @@ const VIEWS: { id: View; label: string }[] = [
   { id: 'tags', label: 'Tags' },
 ]
 
-const EMPTY_BOARD: Board = { tasks: [], goals: [], tags: [], occurrences: [] }
-
-/** Keeps "today" honest across midnight and lets overdue appear on time. */
-function useNow(intervalMs = 60_000): Date {
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), intervalMs)
-    return () => clearInterval(id)
-  }, [intervalMs])
-  return now
-}
+const EMPTY_BOARD: Board = { tasks: [], goals: [], tags: [], occurrences: [], rounds: [] }
 
 /**
  * The auth gate. Board is a separate component so its queries only ever mount
@@ -72,10 +70,148 @@ export function App() {
 
   if (auth.status === 'loading') return <p className="empty">Loading…</p>
   if (auth.status === 'signedOut') return <AuthScreen />
-  return <Board email={auth.email} />
+  return <SignedIn email={auth.email} />
 }
 
-function Board({ email }: { email: string | null }) {
+/* ----------------------------------------------------------------- suite --- */
+
+type Route = 'hub' | 'tasks' | 'focus'
+type Point = { x: number; y: number }
+
+const readRoute = (): Route => {
+  const hash = location.hash.slice(1)
+  return hash === 'tasks' || hash === 'focus' ? hash : 'hub'
+}
+
+const centerOf = (el: Element): Point => {
+  const r = el.getBoundingClientRect()
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+}
+
+/**
+ * Screen changes are a circle opening or closing at a point. The View
+ * Transitions API snapshots both screens and this animates the clip between
+ * them, so neither screen needs to know it is being transitioned. Where the API
+ * is missing, or motion is reduced, the swap is instant and each screen's own
+ * `.enter` animation still plays.
+ */
+function circleTransition(update: () => void, at: Point, closing: boolean): void {
+  const doc = document.documentElement
+  if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    update()
+    return
+  }
+  doc.classList.toggle('vt-closing', closing)
+  const t = document.startViewTransition(() => flushSync(update))
+  const r = Math.hypot(Math.max(at.x, innerWidth - at.x), Math.max(at.y, innerHeight - at.y))
+  const frames = [`circle(0px at ${at.x}px ${at.y}px)`, `circle(${r}px at ${at.x}px ${at.y}px)`]
+  t.ready
+    .then(() =>
+      doc.animate(
+        { clipPath: closing ? frames.reverse() : frames },
+        {
+          duration: closing ? 480 : 640,
+          easing: closing ? 'cubic-bezier(0.7, 0, 0.84, 0)' : 'cubic-bezier(0.16, 1, 0.3, 1)',
+          pseudoElement: closing ? '::view-transition-old(root)' : '::view-transition-new(root)',
+        },
+      ),
+    )
+    .catch(() => {})
+  t.finished.finally(() => doc.classList.remove('vt-closing')).catch(() => {})
+}
+
+/**
+ * Everything behind the sign-in: which app is showing, and the pomodoro timer.
+ * The timer lives here rather than in the focus app so a round keeps running —
+ * and chimes, and asks what got done — while you are looking at your tasks.
+ */
+function SignedIn({ email }: { email: string | null }) {
+  const [route, setRoute] = useState(readRoute)
+  // Where the last app was opened from, so going home closes back into it.
+  const origin = useRef<Point | null>(null)
+
+  const { data } = useBoard()
+  const saveRound = useSaveRound()
+  const deleteRound = useDeleteRound()
+  const [logging, setLogging] = useState<string | null>(null)
+
+  const timer = usePomodoro((round) => {
+    // Recorded the moment it ends; the editor only adds detail. Closing it
+    // unanswered still leaves the round counted.
+    saveRound.mutate({ ...round, goalId: null, tagId: null, notes: null })
+    setLogging(round.id)
+  })
+
+  const show = (next: Route) =>
+    circleTransition(
+      () => setRoute(next),
+      origin.current ?? { x: innerWidth / 2, y: innerHeight / 2 },
+      next === 'hub',
+    )
+
+  const go = (next: Route, from?: Element) => {
+    if (from) origin.current = centerOf(from)
+    history.pushState(null, '', next === 'hub' ? location.pathname + location.search : `#${next}`)
+    show(next)
+  }
+
+  // Back and forward replay the same circle.
+  useEffect(() => {
+    const onPop = () => show(readRoute())
+    addEventListener('popstate', onPop)
+    return () => removeEventListener('popstate', onPop)
+  }, [])
+
+  const rounds = data?.rounds ?? []
+  const loggingRound = logging ? rounds.find((r) => r.id === logging) : undefined
+  // The round before this one: consecutive rounds are usually on the same
+  // thing, so its goal and subject are offered as the starting point.
+  const previous = loggingRound
+    ? rounds
+        .filter((r) => r.startedAt < loggingRound.startedAt)
+        .reduce<(typeof rounds)[number] | undefined>(
+          (best, r) => (!best || r.startedAt > best.startedAt ? r : best),
+          undefined,
+        )
+    : undefined
+
+  return (
+    <>
+      {route === 'hub' ? (
+        <Hub email={email} timer={timer} onOpen={go} />
+      ) : route === 'tasks' ? (
+        <Board email={email} timer={timer} onHome={() => go('hub')} onTimer={(el) => go('focus', el)} />
+      ) : (
+        <FocusApp email={email} timer={timer} onHome={() => go('hub')} />
+      )}
+
+      {loggingRound && data && (
+        <RoundEditor
+          key={loggingRound.id}
+          mode="finished"
+          round={loggingRound}
+          suggest={previous}
+          goals={data.goals}
+          tags={data.tags}
+          onSave={(r) => saveRound.mutate(r)}
+          onDelete={() => deleteRound.mutate(loggingRound.id)}
+          onClose={() => setLogging(null)}
+        />
+      )}
+    </>
+  )
+}
+
+/* ----------------------------------------------------------------- tasks --- */
+
+interface BoardProps {
+  email: string | null
+  timer: Pomodoro
+  onHome: () => void
+  onTimer: (from: Element) => void
+}
+
+function Board({ email, timer, onHome, onTimer }: BoardProps) {
   const now = useNow()
   const { data, isPending, error } = useBoard()
   const board = data ?? EMPTY_BOARD
@@ -152,41 +288,32 @@ function Board({ email }: { email: string | null }) {
 
   return (
     <div className={styles.app}>
-      <header className={styles.header}>
-        <span className={styles.brand}>Circles</span>
-
-        <div className="segmented">
-          {VIEWS.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              aria-pressed={view === v.id}
-              onClick={() => setView(v.id)}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
-
-        <span className={styles.spacer} />
-
-        {db.kind === 'local' ? (
-          <span className={styles.notice} title="Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to sync">
-            This browser only
-          </span>
-        ) : (
-          <>
-            {email && <span className={styles.account}>{email}</span>}
-            <button type="button" className="btn btn-quiet" onClick={() => void signOut()}>
-              Sign out
-            </button>
-          </>
-        )}
-
-        <button type="button" className="btn btn-primary" onClick={() => setEditingId('new')}>
-          New task
-        </button>
-      </header>
+      <AppHeader
+        app="Tasks"
+        email={email}
+        onHome={onHome}
+        timer={timer}
+        onTimer={(e) => onTimer(e.currentTarget)}
+        tabs={
+          <div className="segmented">
+            {VIEWS.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                aria-pressed={view === v.id}
+                onClick={() => setView(v.id)}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+        }
+        action={
+          <button type="button" className="btn btn-primary" onClick={() => setEditingId('new')}>
+            New task
+          </button>
+        }
+      />
 
       {(view === 'circles' || view === 'list') && (
         <FilterBar
@@ -200,7 +327,7 @@ function Board({ email }: { email: string | null }) {
         />
       )}
 
-      <main className={cx(styles.main, view === 'circles' && styles.mainCircles)}>
+      <main key={view} className={cx(styles.main, view === 'circles' && styles.mainCircles, 'enter')}>
         {error ? (
           <p className={styles.error}>{error.message}</p>
         ) : isPending ? (
