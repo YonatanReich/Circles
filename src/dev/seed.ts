@@ -1,7 +1,7 @@
 import { addDays, endOfDay, set } from 'date-fns'
 import { combineDayAndTime, dayKey } from '../domain/deadlines'
 import { matchesRecurrence } from '../domain/recurrence'
-import type { Goal, Importance, Occurrence, Recurrence, Tag, Task } from '../domain/types'
+import type { Goal, Importance, Occurrence, Recurrence, Round, Tag, Task } from '../domain/types'
 import type { Board } from '../lib/db'
 import { LOCAL_KEY } from '../lib/localDb'
 
@@ -42,6 +42,40 @@ function history(tasks: Task[], now: Date): Occurrence[] {
       } else if (i % 4 !== 0) {
         out.push({ taskId: task.id, date, completedAt: completedAt.toISOString(), failureReason: null })
       }
+    }
+  }
+  return out
+}
+
+/**
+ * Five weeks of pomodoros on a fixed pattern: more rounds as the weeks go on
+ * so the conclusions have a trend to report, weekends lighter, and a mix of
+ * goals, subjects and notes so the hover card shows every case.
+ */
+function focusHistory(now: Date): Round[] {
+  const notes = [
+    'Wired the hub transitions.',
+    'Read two chapters, did the exercises.',
+    null,
+    'Easy 5k, kept it conversational.',
+  ]
+  const out: Round[] = []
+  for (let d = 34; d >= 0; d--) {
+    const day = addDays(now, -d)
+    const weekend = day.getDay() === 0 || day.getDay() === 6
+    const count = (weekend ? 1 : 3) + ((35 - d) % 3) + Math.floor((35 - d) / 12)
+    for (let i = 0; i < count; i++) {
+      const startedAt = set(day, { hours: 9 + i, minutes: 5, seconds: 0, milliseconds: 0 })
+      if (startedAt > now) break
+      const k = (d + i) % 4
+      out.push({
+        id: `round-${d}-${i}`,
+        startedAt: startedAt.toISOString(),
+        minutes: 25,
+        goalId: k === 3 ? 'goal-health' : k === 2 ? null : 'goal-ship',
+        tagId: k === 3 ? 'tag-health' : k === 1 ? 'tag-admin' : null,
+        notes: notes[k],
+      })
     }
   }
   return out
@@ -187,6 +221,6 @@ export function seedLocalBoard(now = new Date()): void {
     }),
   ]
 
-  const board: Board = { tasks, goals, tags, occurrences: history(tasks, now) }
+  const board: Board = { tasks, goals, tags, occurrences: history(tasks, now), rounds: focusHistory(now) }
   localStorage.setItem(LOCAL_KEY, JSON.stringify(board))
 }

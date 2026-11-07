@@ -15,13 +15,106 @@
   border-bottom: 1px solid var(--line);
 }
 
-/* A wordmark, not a logo. */
+/* A wordmark, not a logo — and the way home to the hub. */
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 4px 2px;
+  font: inherit;
   font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-2);
+  cursor: pointer;
+  transition: color var(--dur) var(--ease), text-shadow var(--dur) var(--ease);
+}
+
+/* The suite in miniature: one ring, which lights when you can go back to it. */
+.brandMark {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-3);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
+    transform var(--dur-slow) var(--ease-out);
+}
+
+.brandApp {
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line-strong);
+  color: var(--text-3);
+  font-weight: 500;
+  transition: color var(--dur) var(--ease);
+}
+
+.brand:hover {
+  color: var(--text);
+  text-shadow: 0 0 14px var(--neon-glow);
+}
+
+.brand:hover .brandMark {
+  border-color: var(--neon);
+  box-shadow: 0 0 10px var(--neon-glow), inset 0 0 6px var(--neon-glow);
+  transform: scale(1.25);
+}
+
+.brand:hover .brandApp {
+  color: var(--text-2);
+}
+
+/* The running timer, carried into whichever app you are in. */
+.timerChip {
+  --c: var(--neon);
+  --g: var(--neon-glow);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: 4px 10px 4px 7px;
+  cursor: pointer;
+  animation: global(enter) var(--dur-slow) var(--ease-out) backwards;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease-out);
+}
+
+.timerBreak {
+  --c: var(--break);
+  --g: var(--break-glow);
+}
+
+.timerChip:hover {
+  border-color: var(--c);
+  box-shadow: 0 0 16px -4px var(--g);
+  transform: translateY(-1px);
+}
+
+.timerChip svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.timerTrack {
+  stroke: var(--surface-3);
+}
+
+.timerArc {
+  stroke: var(--c);
+  filter: drop-shadow(0 0 2px var(--g));
+  transition: stroke-dasharray 250ms linear;
 }
 
 .spacer {
@@ -100,7 +193,7 @@
 }
 
 @media (max-width: 380px) {
-  .brand {
+  .brandApp {
     display: none;
   }
 }

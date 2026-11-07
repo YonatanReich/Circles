@@ -1,4 +1,4 @@
-import type { Goal, Importance, Recurrence, Subtask, Tag, Task } from '../domain/types'
+import type { Goal, Importance, Recurrence, Round, Subtask, Tag, Task } from '../domain/types'
 import type { Board, Db, GoalInput, TagInput, TaskInput } from './db'
 import { supabase } from './supabase'
 
@@ -32,6 +32,15 @@ interface OccurrenceRow {
   occurrence_date: string
   completed_at: string | null
   failure_reason: string | null
+}
+
+interface RoundRow {
+  id: string
+  started_at: string
+  minutes: number
+  goal_id: string | null
+  tag_id: string | null
+  notes: string | null
 }
 
 interface TagRow {
@@ -124,7 +133,7 @@ export const supabaseDb: Db = {
   },
 
   async load(): Promise<Board> {
-    const [tasks, goals, tags, occurrences] = await Promise.all([
+    const [tasks, goals, tags, occurrences, rounds] = await Promise.all([
       supabase
         .from('tasks')
         .select(
@@ -133,6 +142,7 @@ export const supabaseDb: Db = {
       supabase.from('goals').select('*').is('archived_at', null).order('created_at'),
       supabase.from('tags').select('*').order('name'),
       supabase.from('occurrences').select('task_id, occurrence_date, completed_at, failure_reason'),
+      supabase.from('rounds').select('id, started_at, minutes, goal_id, tag_id, notes'),
     ])
 
     return {
@@ -145,6 +155,16 @@ export const supabaseDb: Db = {
         completedAt: o.completed_at,
         failureReason: o.failure_reason,
       })),
+      rounds: unwrap<RoundRow[]>(rounds).map(
+        (r): Round => ({
+          id: r.id,
+          startedAt: r.started_at,
+          minutes: r.minutes,
+          goalId: r.goal_id,
+          tagId: r.tag_id,
+          notes: r.notes,
+        }),
+      ),
     }
   },
 
@@ -304,5 +324,25 @@ export const supabaseDb: Db = {
 
   async deleteSubtask(id: string) {
     unwrap(await supabase.from('subtasks').delete().eq('id', id).select('id'))
+  },
+
+  async saveRound(r: Round) {
+    unwrap(
+      await supabase
+        .from('rounds')
+        .upsert({
+          id: r.id,
+          started_at: r.startedAt,
+          minutes: r.minutes,
+          goal_id: r.goalId,
+          tag_id: r.tagId,
+          notes: r.notes,
+        })
+        .select('id'),
+    )
+  },
+
+  async deleteRound(id: string) {
+    unwrap(await supabase.from('rounds').delete().eq('id', id).select('id'))
   },
 }

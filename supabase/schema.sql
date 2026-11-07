@@ -94,6 +94,20 @@ create table if not exists occurrences (
   unique (task_id, occurrence_date)
 );
 
+-- One completed pomodoro. The id is minted in the browser when the round starts,
+-- so finishing it is an idempotent upsert. A goal or tag being deleted leaves
+-- the round in place — the time was still spent — and only drops the label.
+create table if not exists rounds (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  started_at timestamptz not null,
+  minutes    smallint not null check (minutes between 1 and 600),
+  goal_id    uuid references goals (id) on delete set null,
+  tag_id     uuid references tags (id) on delete set null,
+  notes      text,
+  created_at timestamptz not null default now()
+);
+
 -- ------------------------------------------------------------ migrations ---
 -- For databases created before these columns existed. No-ops on a fresh one.
 
@@ -109,6 +123,7 @@ create index if not exists subtasks_task_idx       on subtasks (task_id);
 create index if not exists task_goals_goal_idx     on task_goals (goal_id);
 create index if not exists task_tags_tag_idx       on task_tags (tag_id);
 create index if not exists occurrences_task_idx    on occurrences (task_id);
+create index if not exists rounds_user_started_idx on rounds (user_id, started_at);
 
 -- ------------------------------------------------------------------- rls ---
 -- The anon key ships in the browser bundle by design; these policies are the
@@ -121,6 +136,7 @@ alter table subtasks   enable row level security;
 alter table task_goals enable row level security;
 alter table task_tags  enable row level security;
 alter table occurrences enable row level security;
+alter table rounds     enable row level security;
 
 drop policy if exists own_tags on tags;
 create policy own_tags on tags for all
@@ -148,4 +164,8 @@ create policy own_task_goals on task_goals for all
 
 drop policy if exists own_occurrences on occurrences;
 create policy own_occurrences on occurrences for all
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists own_rounds on rounds;
+create policy own_rounds on rounds for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());

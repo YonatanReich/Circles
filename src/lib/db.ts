@@ -1,4 +1,4 @@
-import type { Goal, Importance, Occurrence, Recurrence, Tag, Task, Tone } from '../domain/types'
+import type { Goal, Importance, Occurrence, Recurrence, Round, Tag, Task, Tone } from '../domain/types'
 import { localDb } from './localDb'
 import { isSupabaseConfigured } from './supabase'
 import { supabaseDb } from './supabaseDb'
@@ -34,6 +34,7 @@ export interface Board {
   goals: Goal[]
   tags: Tag[]
   occurrences: Occurrence[]
+  rounds: Round[]
 }
 
 /**
@@ -69,6 +70,10 @@ export interface Db {
   addSubtask(taskId: string, title: string): Promise<void>
   setSubtaskDone(id: string, done: boolean): Promise<void>
   deleteSubtask(id: string): Promise<void>
+
+  /** Insert or overwrite by id — creating and editing a round are one call. */
+  saveRound(round: Round): Promise<void>
+  deleteRound(id: string): Promise<void>
 }
 
 /**

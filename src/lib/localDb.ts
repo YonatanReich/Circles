@@ -1,4 +1,4 @@
-import type { Goal, Occurrence, Tag, Task } from '../domain/types'
+import type { Goal, Occurrence, Round, Tag, Task } from '../domain/types'
 import type { Board, Db, GoalInput, TagInput, TaskInput } from './db'
 
 /**
@@ -8,7 +8,7 @@ import type { Board, Db, GoalInput, TagInput, TaskInput } from './db'
  */
 export const LOCAL_KEY = 'circles.board.v1'
 
-const empty = (): Board => ({ tasks: [], goals: [], tags: [], occurrences: [] })
+const empty = (): Board => ({ tasks: [], goals: [], tags: [], occurrences: [], rounds: [] })
 
 function read(): Board {
   try {
@@ -28,6 +28,7 @@ function read(): Board {
         ...o,
         failureReason: o.failureReason ?? null,
       })),
+      rounds: parsed.rounds ?? [],
     }
   } catch {
     return empty()
@@ -160,6 +161,8 @@ export const localDb: Db = {
     mutate((board) => {
       board.goals = board.goals.filter((g) => g.id !== id)
       for (const task of board.tasks) task.goalIds = task.goalIds.filter((g) => g !== id)
+      // Mirrors `on delete set null`: the round happened, only the label goes.
+      for (const r of board.rounds) if (r.goalId === id) r.goalId = null
     }),
 
   createTag: (input: TagInput) =>
@@ -184,6 +187,7 @@ export const localDb: Db = {
     mutate((board) => {
       board.tags = board.tags.filter((t) => t.id !== id)
       for (const task of board.tasks) task.tagIds = task.tagIds.filter((t) => t !== id)
+      for (const r of board.rounds) if (r.tagId === id) r.tagId = null
     }),
 
   addSubtask: (taskId: string, title: string) =>
@@ -205,5 +209,15 @@ export const localDb: Db = {
   deleteSubtask: (id: string) =>
     mutate((board) => {
       for (const task of board.tasks) task.subtasks = task.subtasks.filter((s) => s.id !== id)
+    }),
+
+  saveRound: (round: Round) =>
+    mutate((board) => {
+      board.rounds = [...board.rounds.filter((r) => r.id !== round.id), round]
+    }),
+
+  deleteRound: (id: string) =>
+    mutate((board) => {
+      board.rounds = board.rounds.filter((r) => r.id !== id)
     }),
 }
