@@ -1,5 +1,5 @@
 /*
- * Two circles adrift. Each bobs on its own slow cycle, out of phase with the
+ * Three circles adrift. Each bobs on its own slow cycle, out of phase with the
  * other, inside a dashed orbit that turns once every couple of minutes. The
  * hub is the one screen with nothing to do but choose, so it is allowed to
  * move while you look at it — everywhere else, motion only answers you.
@@ -9,7 +9,7 @@
   flex-direction: column;
   min-height: 100dvh;
   overflow-x: hidden;
-  --size: clamp(220px, 28vw, 300px);
+  --size: clamp(200px, 22vw, 280px);
 }
 
 .top {
@@ -54,7 +54,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: clamp(56px, 9vw, 140px);
+  /* A narrow tablet takes two and one rather than squeezing three. */
+  flex-wrap: wrap;
+  gap: clamp(56px, 7vw, 64px) clamp(40px, 6vw, 110px);
   padding: var(--sp-6) var(--sp-4) var(--sp-7);
 }
 
@@ -62,8 +64,8 @@
 
 .slot {
   animation: float 7s ease-in-out infinite;
-  /* Negative delays start each orb mid-cycle, so they never move in step. */
-  animation-delay: calc(var(--i) * -3.4s);
+  /* Negative delays start each orb a third of a cycle apart, so they never move in step. */
+  animation-delay: calc(var(--i) * -2.33s);
 }
 
 @keyframes float {

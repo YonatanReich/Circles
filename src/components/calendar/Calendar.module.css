@@ -1,0 +1,901 @@
+/*
+ * The calendar: the agenda above, the work to fit into it below.
+ *
+ * Same rules as everywhere else — flat fills, hairlines that turn neon when
+ * something answers you, gold for recurring work and red for late. Blocks are
+ * the one solid thing on the grid; everything else is lines.
+ *
+ * Geometry is driven by custom properties set from CalendarGrid.tsx (`--hour`,
+ * `--head`, `--gutter`, `--days`) and, per block, by minutes (`--s`, `--e`) and
+ * lanes (`--col`, `--cols`), so CSS does the arithmetic and the drag code only
+ * ever deals in minutes.
+ */
+
+.main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gridWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* ----------------------------------------------------------------- grid --- */
+
+.scroller {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+
+.canvas {
+  --col-min: 96px;
+  --snap: 90ms;
+  display: grid;
+  grid-template-columns: var(--gutter) minmax(0, 1fr);
+  grid-template-rows: var(--head) auto;
+  /* A week on a phone keeps readable columns and scrolls sideways instead. */
+  min-width: calc(var(--gutter) + var(--days) * var(--col-min));
+}
+
+.corner,
+.heads {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.corner {
+  left: 0;
+  z-index: 7;
+}
+
+.heads {
+  display: grid;
+  grid-template-columns: repeat(var(--days), minmax(0, 1fr));
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-left: 1px solid var(--line);
+  min-width: 0;
+}
+
+.weekday {
+  font-size: var(--fs-xs);
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* The day number sits in the suite's ring; today's is lit. */
+.dayNum {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.headToday .weekday {
+  color: var(--neon);
+}
+
+.headToday .dayNum {
+  border-color: var(--neon);
+  color: var(--text);
+  box-shadow: 0 0 12px -2px var(--neon-glow), inset 0 0 8px -3px var(--neon-glow);
+}
+
+.planned {
+  min-height: 14px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--text-3);
+}
+
+.gutter {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  height: calc(24 * var(--hour));
+  background: var(--bg);
+}
+
+.hour {
+  position: absolute;
+  right: 8px;
+  top: calc(var(--h) * var(--hour));
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.nowLabel {
+  position: absolute;
+  right: 4px;
+  top: calc(var(--now) * var(--hour) / 60);
+  transform: translateY(-50%);
+  padding: 1px 4px;
+  border: 1px solid var(--neon-line);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: 11px;
+  color: var(--neon);
+  box-shadow: 0 0 10px -3px var(--neon-glow);
+}
+
+.cols {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--days), minmax(0, 1fr));
+  height: calc(24 * var(--hour));
+}
+
+/* Hour rules, with fainter half hours, painted rather than drawn as 48 divs. */
+.col {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid var(--line);
+  background-image: linear-gradient(to bottom, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.028) 1px, transparent 1px);
+  background-size: 100% var(--hour), 100% calc(var(--hour) / 2);
+  cursor: cell;
+}
+
+.colToday {
+  background-color: oklch(0.78 0.11 235 / 0.025);
+}
+
+/* Time already gone, dimmed a shade. Still a valid place to log work. */
+.past {
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(var(--now) * var(--hour) / 60);
+  background: rgb(0 0 0 / 0.2);
+  pointer-events: none;
+}
+
+.nowLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--now) * var(--hour) / 60);
+  z-index: 4;
+  border-top: 1px solid var(--neon);
+  box-shadow: 0 0 8px var(--neon-glow);
+  pointer-events: none;
+}
+
+.nowLine::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -4.5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--neon);
+  background: var(--bg);
+  box-shadow: 0 0 8px var(--neon-glow);
+}
+
+/* "+ 14:30": where a click would start a new task. Mouse only. */
+.slotHint {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: 0;
+  height: calc(var(--hour) - 2px);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), transform 70ms var(--ease-out);
+}
+
+.slotHint::after {
+  content: attr(data-label);
+  position: absolute;
+  top: 3px;
+  left: 7px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+@media (hover: hover) {
+  .col:hover > .slotHint {
+    opacity: 1;
+  }
+}
+
+.col:has(.block:hover) > .slotHint,
+:global(html[data-drag]) .slotHint {
+  opacity: 0;
+}
+
+/* --------------------------------------------------------------- blocks --- */
+
+.block {
+  --rule: var(--text-3);
+  position: absolute;
+  top: calc(var(--s) * var(--hour) / 60 + 1px);
+  height: max(calc((var(--e) - var(--s)) * var(--hour) / 60 - 2px), 16px);
+  left: calc(var(--col) * 100% / var(--cols) + 3px);
+  width: calc(100% / var(--cols) - 5px);
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 6px 4px 7px;
+  border: 1px solid var(--line-strong);
+  border-left: 2px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  overflow: hidden;
+  /* So a block can lay itself out for the lane it was given, not the viewport. */
+  container-type: inline-size;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: top var(--snap) var(--ease-out), height var(--snap) var(--ease-out),
+    left var(--dur) var(--ease-out), width var(--dur) var(--ease-out),
+    border-color var(--dur-fast) var(--ease), box-shadow var(--dur) var(--ease),
+    background var(--dur-fast) var(--ease), opacity var(--dur) var(--ease);
+}
+
+/* Importance is the rule down the side, as in the list; gold means recurring. */
+.block[data-importance='1'] {
+  --rule: var(--accent-dim);
+}
+
+.block[data-importance='2'] {
+  --rule: var(--accent);
+}
+
+.block[data-recurring] {
+  --rule: var(--gold);
+  background: color-mix(in oklch, var(--surface-2), var(--gold) 5%);
+}
+
+@media (hover: hover) {
+  .block:hover {
+    z-index: 3;
+    border-color: var(--neon-line);
+    border-left-color: var(--rule);
+    background: var(--surface-3);
+    box-shadow: 0 0 18px -6px var(--neon-glow);
+  }
+}
+
+.blockCheck {
+  margin-top: 1px;
+}
+
+.blockBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: inherit;
+}
+
+.blockTitle {
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow-wrap: anywhere;
+}
+
+.blockTime {
+  max-width: 100%;
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*
+ * A lane a third of a week column wide has room for a word, not a checkbox
+ * and a wrapped title broken letter by letter. The title goes to one line and
+ * the checkbox steps out; the tray card and the hover title still have both.
+ */
+@container (max-width: 96px) {
+  /* Doubled up to outrank base.css's input[type='checkbox'] display. */
+  .block .blockCheck {
+    display: none;
+  }
+
+  .blockTitle {
+    display: block;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+.late {
+  color: var(--danger);
+}
+
+/* Half an hour or less: one line, time after the title. */
+.short {
+  align-items: center;
+  padding-block: 0;
+}
+
+.short .blockBody {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.short .blockTitle {
+  -webkit-line-clamp: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.short .blockCheck {
+  margin-top: 0;
+}
+
+.done {
+  opacity: 0.55;
+}
+
+.done .blockTitle {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+/* Where a moving block came from, held faintly until it lands. */
+.lifted {
+  opacity: 0.28;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.resizing {
+  z-index: 4;
+  border-color: var(--neon);
+  border-left-color: var(--rule);
+  box-shadow: 0 0 0 1px var(--neon-line), 0 0 22px -6px var(--neon-glow);
+}
+
+/* Where a drag would land. Always full width, above the lanes, so the
+   other blocks never reshuffle under the pointer. */
+.preview {
+  --col: 0;
+  --cols: 1;
+  z-index: 5;
+  border-color: var(--neon);
+  border-left: 2px solid var(--neon);
+  background: var(--surface-3);
+  box-shadow: 0 0 0 1px var(--neon-line), 0 10px 30px -12px var(--neon-glow);
+  pointer-events: none;
+}
+
+.invalid {
+  border-color: var(--danger);
+  border-left-color: var(--danger);
+  border-style: dashed;
+  background: var(--danger-wash);
+  box-shadow: none;
+}
+
+.invalid .blockTitle {
+  color: var(--danger);
+}
+
+/* Just placed: it lands without sliding and its edge glows down once. */
+.settle {
+  transition: left var(--dur) var(--ease-out), width var(--dur) var(--ease-out);
+  animation: settle 700ms var(--ease-out);
+}
+
+@keyframes settle {
+  from {
+    border-color: var(--neon);
+    box-shadow: 0 0 0 1px var(--neon-line), 0 0 26px -4px var(--neon-glow);
+  }
+}
+
+/* Stretch handles: a hairline grip that shows on hover, across the full width. */
+.handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 7px;
+  z-index: 2;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 18px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--neon);
+  box-shadow: 0 0 6px var(--neon-glow);
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.handleTop {
+  top: -1px;
+}
+
+.handleTop::after {
+  top: 2px;
+}
+
+.handleBottom {
+  bottom: -1px;
+}
+
+.handleBottom::after {
+  bottom: 2px;
+}
+
+@media (hover: hover) {
+  .block:hover .handle::after {
+    opacity: 0.75;
+  }
+}
+
+.resizing .handle::after {
+  opacity: 1;
+}
+
+.lifted .handle::after,
+.done .handle::after {
+  opacity: 0 !important;
+}
+
+:global(html[data-drag]),
+:global(html[data-drag] *) {
+  cursor: grabbing !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+:global(html[data-drag='resize']),
+:global(html[data-drag='resize'] *) {
+  cursor: ns-resize !important;
+}
+
+/* ----------------------------------------------------------------- tray --- */
+
+.tray {
+  flex: none;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  padding-top: var(--sp-3);
+}
+
+.trayHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4) var(--sp-2);
+}
+
+.count {
+  margin-left: 7px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.countLate {
+  color: var(--danger);
+}
+
+.hint {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.hintCoarse {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .hintFine {
+    display: none;
+  }
+
+  .hintCoarse {
+    display: inline;
+  }
+}
+
+.trayEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  /* Same height as a row of cards, so switching tabs never jolts the grid. */
+  min-height: 104px;
+  padding: var(--sp-2) var(--sp-4) var(--sp-4);
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+
+.cards {
+  --gap: 10px;
+  display: flex;
+  gap: var(--gap);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 6px var(--sp-4) var(--sp-4);
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--sp-4);
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+
+.card {
+  --rule: transparent;
+  position: relative;
+  flex: none;
+  width: 236px;
+  min-height: 82px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  scroll-snap-align: start;
+  cursor: grab;
+  touch-action: pan-x;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  animation: cardIn var(--dur-slow) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 28ms);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease-out), opacity var(--dur) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--rule);
+}
+
+.card[data-importance='1'] {
+  --rule: var(--accent-dim);
+}
+
+.card[data-importance='2'] {
+  --rule: var(--accent);
+}
+
+@media (hover: hover) {
+  .card:hover {
+    border-color: var(--neon-line);
+    background: var(--surface-3);
+    box-shadow: 0 0 18px -8px var(--neon-glow);
+    transform: translateY(-2px);
+  }
+}
+
+.card:active {
+  transform: translateY(0) scale(0.99);
+}
+
+/* The card's slot while it is out on the calendar. */
+.card[data-placeholder] {
+  opacity: 0.32;
+  border-style: dashed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Ticked: it fades, then folds shut so its neighbours slide over. */
+.card[data-leaving] {
+  pointer-events: none;
+  animation: leave var(--dur-ring) var(--ease) forwards;
+}
+
+@keyframes leave {
+  45% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.94);
+    width: 0;
+    padding-inline: 0;
+    border-width: 0;
+    margin-right: calc(-1 * var(--gap));
+  }
+}
+
+.card[data-fresh] {
+  animation: cardIn var(--dur-slow) var(--ease-out) backwards, fresh 1.6s var(--ease-out);
+}
+
+@keyframes fresh {
+  0%,
+  30% {
+    border-color: var(--neon);
+    box-shadow: 0 0 0 1px var(--neon-line), 0 0 24px -6px var(--neon-glow);
+  }
+}
+
+.cardMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: inherit;
+}
+
+.cardTitle {
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.cardMeta,
+.cardLabels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  min-width: 0;
+}
+
+.cardLabels {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, #000 85%, transparent);
+}
+
+.cardRepeat,
+.cardLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.cardRepeat {
+  color: var(--gold-dim);
+}
+
+.overdue {
+  color: var(--danger);
+}
+
+.cardScheduled {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-xs);
+  color: var(--neon);
+}
+
+.clock {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
+/* ---------------------------------------------------------------- ghost --- */
+/* The card under the pointer. The outer box only translates — set every frame
+   from the drag hook, never transitioned — and the inner box carries the lift,
+   so the two never fight over one transform. */
+
+.ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.ghostCard {
+  transform: scale(1.04) rotate(-1.5deg);
+  border-color: var(--neon-line);
+  background: var(--surface-3);
+  box-shadow: 0 22px 44px -16px rgb(0 0 0 / 0.7), 0 0 0 1px var(--neon-line), 0 0 30px -8px var(--neon-glow);
+  animation: lift var(--dur) var(--ease-out);
+  transition: transform var(--dur) var(--ease-out), opacity var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+@keyframes lift {
+  from {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+/* Over a slot it can take, the card steps back so the block it will become
+   reads first; over one it cannot, its edge goes red. */
+.ghost[data-over='valid'] .ghostCard {
+  opacity: 0.35;
+  transform: scale(0.9) rotate(0);
+}
+
+.ghost[data-over='invalid'] .ghostCard {
+  border-color: var(--danger);
+  box-shadow: 0 22px 44px -16px rgb(0 0 0 / 0.7), 0 0 0 1px var(--danger-wash);
+}
+
+.ghost[data-returning] {
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+
+.ghost[data-returning] .ghostCard {
+  opacity: 1;
+  transform: none;
+  box-shadow: none;
+  border-color: var(--line);
+}
+
+/* --------------------------------------------------------- block editor --- */
+
+.when {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.note,
+.noteBad {
+  margin-top: var(--sp-3);
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--line-strong);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+
+.noteBad {
+  border-left-color: var(--danger);
+}
+
+/* ---------------------------------------------------------------- phone --- */
+
+@media (max-width: 640px) {
+  .trayHead {
+    padding-inline: var(--sp-3);
+  }
+
+  .hint {
+    display: none;
+  }
+
+  .cards {
+    padding-inline: var(--sp-3);
+    scroll-padding-inline: var(--sp-3);
+  }
+
+  .card {
+    width: 208px;
+  }
+
+  .when {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .whenDay {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------------------------------------------------------------- touch --- */
+
+@media (pointer: coarse) {
+  /* A finger needs a real target; the top edge is left to dragging, since a
+     grip at both ends of a short block would leave nothing to hold. */
+  .handleTop {
+    display: none;
+  }
+
+  .handleBottom {
+    height: 14px;
+  }
+
+  .handleBottom::after {
+    opacity: 0.45;
+  }
+
+  .short .handleBottom {
+    height: 9px;
+  }
+
+  .col {
+    cursor: default;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas {
+    --snap: 0ms;
+  }
+
+  .card,
+  .card[data-fresh],
+  .ghostCard,
+  .settle {
+    animation: none;
+  }
+}

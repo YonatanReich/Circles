@@ -108,6 +108,20 @@ create table if not exists rounds (
   created_at timestamptz not null default now()
 );
 
+-- A slot on the calendar: when the work is meant to happen, as distinct from
+-- when it is due. A one-off task holds at most one; a recurring task one per
+-- day, standing for that day's occurrence. The app keeps to that — the table
+-- does not, so a block can be moved between days in a single upsert. Ids are
+-- minted in the browser, like rounds, so placing one is idempotent.
+create table if not exists blocks (
+  id       uuid primary key default gen_random_uuid(),
+  user_id  uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  task_id  uuid not null references tasks (id) on delete cascade,
+  start_at timestamptz not null,
+  end_at   timestamptz not null,
+  check (end_at > start_at)
+);
+
 -- ------------------------------------------------------------ migrations ---
 -- For databases created before these columns existed. No-ops on a fresh one.
 
@@ -124,6 +138,8 @@ create index if not exists task_goals_goal_idx     on task_goals (goal_id);
 create index if not exists task_tags_tag_idx       on task_tags (tag_id);
 create index if not exists occurrences_task_idx    on occurrences (task_id);
 create index if not exists rounds_user_started_idx on rounds (user_id, started_at);
+create index if not exists blocks_user_start_idx   on blocks (user_id, start_at);
+create index if not exists blocks_task_idx         on blocks (task_id);
 
 -- ------------------------------------------------------------------- rls ---
 -- The anon key ships in the browser bundle by design; these policies are the
@@ -137,6 +153,7 @@ alter table task_goals enable row level security;
 alter table task_tags  enable row level security;
 alter table occurrences enable row level security;
 alter table rounds     enable row level security;
+alter table blocks     enable row level security;
 
 drop policy if exists own_tags on tags;
 create policy own_tags on tags for all
@@ -168,4 +185,8 @@ create policy own_occurrences on occurrences for all
 
 drop policy if exists own_rounds on rounds;
 create policy own_rounds on rounds for all
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists own_blocks on blocks;
+create policy own_blocks on blocks for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());

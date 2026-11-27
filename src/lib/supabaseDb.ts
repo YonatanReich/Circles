@@ -1,4 +1,4 @@
-import type { Goal, Importance, Recurrence, Round, Subtask, Tag, Task } from '../domain/types'
+import type { Block, Goal, Importance, Recurrence, Round, Subtask, Tag, Task } from '../domain/types'
 import type { Board, Db, GoalInput, TagInput, TaskInput } from './db'
 import { supabase } from './supabase'
 
@@ -41,6 +41,13 @@ interface RoundRow {
   goal_id: string | null
   tag_id: string | null
   notes: string | null
+}
+
+interface BlockRow {
+  id: string
+  task_id: string
+  start_at: string
+  end_at: string
 }
 
 interface TagRow {
@@ -133,7 +140,7 @@ export const supabaseDb: Db = {
   },
 
   async load(): Promise<Board> {
-    const [tasks, goals, tags, occurrences, rounds] = await Promise.all([
+    const [tasks, goals, tags, occurrences, rounds, blocks] = await Promise.all([
       supabase
         .from('tasks')
         .select(
@@ -143,6 +150,8 @@ export const supabaseDb: Db = {
       supabase.from('tags').select('*').order('name'),
       supabase.from('occurrences').select('task_id, occurrence_date, completed_at, failure_reason'),
       supabase.from('rounds').select('id, started_at, minutes, goal_id, tag_id, notes'),
+      // ponytail: every block ever, a few a day. Filter to `end_at >= today` if the board load gets slow.
+      supabase.from('blocks').select('id, task_id, start_at, end_at'),
     ])
 
     return {
@@ -165,14 +174,18 @@ export const supabaseDb: Db = {
           notes: r.notes,
         }),
       ),
+      blocks: unwrap<BlockRow[]>(blocks).map(
+        (b): Block => ({ id: b.id, taskId: b.task_id, start: b.start_at, end: b.end_at }),
+      ),
     }
   },
 
-  async createTask(input: TaskInput) {
+  async createTask(input: TaskInput, id?: string) {
     const row = unwrap<{ id: string }[]>(
       await supabase
         .from('tasks')
         .insert({
+          ...(id ? { id } : {}),
           title: input.title,
           description: input.description,
           deadline: input.deadline,
@@ -344,5 +357,18 @@ export const supabaseDb: Db = {
 
   async deleteRound(id: string) {
     unwrap(await supabase.from('rounds').delete().eq('id', id).select('id'))
+  },
+
+  async saveBlock(b: Block) {
+    unwrap(
+      await supabase
+        .from('blocks')
+        .upsert({ id: b.id, task_id: b.taskId, start_at: b.start, end_at: b.end })
+        .select('id'),
+    )
+  },
+
+  async deleteBlock(id: string) {
+    unwrap(await supabase.from('blocks').delete().eq('id', id).select('id'))
   },
 }

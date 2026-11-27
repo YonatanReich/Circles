@@ -1,4 +1,4 @@
-import type { Goal, Importance, Occurrence, Recurrence, Round, Tag, Task, Tone } from '../domain/types'
+import type { Block, Goal, Importance, Occurrence, Recurrence, Round, Tag, Task, Tone } from '../domain/types'
 import { localDb } from './localDb'
 import { isSupabaseConfigured } from './supabase'
 import { supabaseDb } from './supabaseDb'
@@ -35,6 +35,7 @@ export interface Board {
   tags: Tag[]
   occurrences: Occurrence[]
   rounds: Round[]
+  blocks: Block[]
 }
 
 /**
@@ -47,7 +48,8 @@ export interface Db {
   init(): Promise<void>
   load(): Promise<Board>
 
-  createTask(input: TaskInput): Promise<void>
+  /** `id` lets the caller mint it, so a new task can be shown — and scheduled — before the insert returns. */
+  createTask(input: TaskInput, id?: string): Promise<void>
   updateTask(id: string, patch: Partial<TaskInput>): Promise<void>
   deleteTask(id: string): Promise<void>
   setTaskCompleted(id: string, completed: boolean): Promise<void>
@@ -74,6 +76,10 @@ export interface Db {
   /** Insert or overwrite by id — creating and editing a round are one call. */
   saveRound(round: Round): Promise<void>
   deleteRound(id: string): Promise<void>
+
+  /** Insert or overwrite by id — placing, moving and resizing a block are one call. */
+  saveBlock(block: Block): Promise<void>
+  deleteBlock(id: string): Promise<void>
 }
 
 /**
