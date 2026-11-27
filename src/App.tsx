@@ -4,12 +4,12 @@ import {
   buildRings,
   completedItems,
   indexOccurrences,
-  toRingTask,
   type RingTask,
 } from './domain/rings'
 import styles from './App.module.css'
 import { AppHeader } from './components/AppHeader'
 import { AuthScreen } from './components/AuthScreen'
+import { CalendarApp } from './components/calendar/CalendarApp'
 import { CircleView } from './components/CircleView/CircleView'
 import type { RingHalf } from './components/CircleView/types'
 import { FilterBar } from './components/FilterBar'
@@ -21,7 +21,7 @@ import { ListView } from './components/ListView'
 import { RingModal } from './components/RingModal'
 import { StatsView } from './components/StatsView'
 import { TagsView } from './components/TagsView'
-import { TaskEditor } from './components/TaskEditor'
+import { ConnectedTaskEditor } from './components/TaskEditor'
 import { useAuth } from './lib/auth'
 import { cx } from './lib/cx'
 import { type Board } from './lib/db'
@@ -29,23 +29,17 @@ import { NO_FILTERS, type Filters } from './lib/filters'
 import { useNow } from './lib/useNow'
 import { usePomodoro, type Pomodoro } from './lib/usePomodoro'
 import {
-  useAddSubtask,
   useBoard,
   useCreateGoal,
   useCreateTag,
-  useCreateTask,
   useDeleteGoal,
   useDeleteRound,
-  useDeleteSubtask,
   useDeleteTag,
-  useDeleteTask,
   useSaveRound,
   useSetOccurrenceReason,
   useSetTasksDone,
-  useToggleSubtask,
   useUpdateGoal,
   useUpdateTag,
-  useUpdateTask,
 } from './lib/queries'
 
 type View = 'circles' | 'list' | 'stats' | 'goals' | 'tags'
@@ -58,7 +52,7 @@ const VIEWS: { id: View; label: string }[] = [
   { id: 'tags', label: 'Tags' },
 ]
 
-const EMPTY_BOARD: Board = { tasks: [], goals: [], tags: [], occurrences: [], rounds: [] }
+const EMPTY_BOARD: Board = { tasks: [], goals: [], tags: [], occurrences: [], rounds: [], blocks: [] }
 
 /**
  * The auth gate. Board is a separate component so its queries only ever mount
@@ -75,12 +69,12 @@ export function App() {
 
 /* ----------------------------------------------------------------- suite --- */
 
-type Route = 'hub' | 'tasks' | 'focus'
+type Route = 'hub' | 'tasks' | 'focus' | 'calendar'
 type Point = { x: number; y: number }
 
 const readRoute = (): Route => {
   const hash = location.hash.slice(1)
-  return hash === 'tasks' || hash === 'focus' ? hash : 'hub'
+  return hash === 'tasks' || hash === 'focus' || hash === 'calendar' ? hash : 'hub'
 }
 
 const centerOf = (el: Element): Point => {
@@ -181,6 +175,8 @@ function SignedIn({ email }: { email: string | null }) {
         <Hub email={email} timer={timer} onOpen={go} />
       ) : route === 'tasks' ? (
         <Board email={email} timer={timer} onHome={() => go('hub')} onTimer={(el) => go('focus', el)} />
+      ) : route === 'calendar' ? (
+        <CalendarApp email={email} timer={timer} onHome={() => go('hub')} onTimer={(el) => go('focus', el)} />
       ) : (
         <FocusApp email={email} timer={timer} onHome={() => go('hub')} />
       )}
@@ -224,9 +220,6 @@ function Board({ email, timer, onHome, onTimer }: BoardProps) {
   // appear as they are added rather than a snapshot taken when it opened.
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
 
-  const createTask = useCreateTask()
-  const updateTask = useUpdateTask()
-  const deleteTask = useDeleteTask()
   const setTasksDone = useSetTasksDone()
   const setOccurrenceReason = useSetOccurrenceReason()
   const createGoal = useCreateGoal()
@@ -235,9 +228,6 @@ function Board({ email, timer, onHome, onTimer }: BoardProps) {
   const createTag = useCreateTag()
   const updateTag = useUpdateTag()
   const deleteTag = useDeleteTag()
-  const addSubtask = useAddSubtask()
-  const toggleSubtask = useToggleSubtask()
-  const deleteSubtask = useDeleteSubtask()
 
   const completedByTask = useMemo(() => indexOccurrences(board.occurrences), [board.occurrences])
 
@@ -248,14 +238,6 @@ function Board({ email, timer, onHome, onTimer }: BoardProps) {
 
   const goalMap = useMemo(() => new Map(board.goals.map((g) => [g.id, g])), [board.goals])
   const tagMap = useMemo(() => new Map(board.tags.map((t) => [t.id, t])), [board.tags])
-
-  const allTasks = useMemo(
-    () =>
-      board.tasks
-        .map((t) => toRingTask(t, now, completedByTask))
-        .filter((t): t is RingTask => !!t),
-    [board.tasks, now, completedByTask],
-  )
 
   // Includes completed occurrences of recurring tasks, not just one-offs, so a
   // habit ticked by mistake can be put back too.
@@ -273,18 +255,6 @@ function Board({ email, timer, onHome, onTimer }: BoardProps) {
   }
 
   const ring = openRing ? rings.find((r) => r.key === openRing.key) : undefined
-  const editingTask = editingId && editingId !== 'new'
-    ? (allTasks.find((t) => t.id === editingId) ?? null)
-    : null
-
-  // A recurring task's missed-reason belongs to the day on show, not the rule,
-  // so it is looked up here rather than carried on the resolved task.
-  const editingReason =
-    editingTask?.occurrenceDay
-      ? (board.occurrences.find(
-          (o) => o.taskId === editingTask.id && o.date === editingTask.occurrenceDay,
-        )?.failureReason ?? null)
-      : null
 
   return (
     <div className={styles.app}>
@@ -396,29 +366,13 @@ function Board({ email, timer, onHome, onTimer }: BoardProps) {
       )}
 
       {editingId && (
-        <TaskEditor
+        <ConnectedTaskEditor
           // Remount on a different task so every field resets cleanly.
           key={editingId}
-          task={editingTask}
-          goals={board.goals}
-          tags={board.tags}
+          id={editingId}
+          board={board}
           now={now}
-          // Saving and deleting only mutate; the editor closes itself through
-          // the Modal so the exit animation is not cut short, and `onClose`
-          // below is what finally unmounts it.
-          onSave={(input) => {
-            if (editingTask) updateTask.mutate({ id: editingTask.id, patch: input })
-            else createTask.mutate(input)
-          }}
-          onDelete={editingTask ? () => deleteTask.mutate(editingTask.id) : null}
           onClose={() => setEditingId(null)}
-          onAddSubtask={(taskId, title) => addSubtask.mutate({ taskId, title })}
-          onToggleSubtask={(id, done) => toggleSubtask.mutate({ id, done })}
-          onDeleteSubtask={(id) => deleteSubtask.mutate({ id })}
-          occurrenceReason={editingReason}
-          onOccurrenceReason={(taskId, date, reason) =>
-            setOccurrenceReason.mutate({ taskId, date, reason })
-          }
         />
       )}
     </div>

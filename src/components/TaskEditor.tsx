@@ -1,5 +1,5 @@
 import { parseISO } from 'date-fns'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   QUICK_PICKS,
   combineDayAndTime,
@@ -8,7 +8,7 @@ import {
   type QuickPick,
 } from '../domain/deadlines'
 import { WEEKDAY_LABELS } from '../domain/recurrence'
-import type { RingTask } from '../domain/rings'
+import { indexOccurrences, toRingTask, type RingTask } from '../domain/rings'
 import { outcomeOf } from '../domain/stats'
 import {
   IMPORTANCE_LABEL,
@@ -19,7 +19,16 @@ import {
   type Tag,
 } from '../domain/types'
 import { cx } from '../lib/cx'
-import type { TaskInput } from '../lib/db'
+import type { Board, TaskInput } from '../lib/db'
+import {
+  useAddSubtask,
+  useCreateTask,
+  useDeleteSubtask,
+  useDeleteTask,
+  useSetOccurrenceReason,
+  useToggleSubtask,
+  useUpdateTask,
+} from '../lib/queries'
 import styles from './TaskEditor.module.css'
 import { Modal, type ModalCloseRef } from './ui/Modal'
 
@@ -42,12 +51,15 @@ interface Props {
   occurrenceReason: string | null
   /** Records why one dated instance of a recurring task was missed. */
   onOccurrenceReason: (taskId: string, day: string, reason: string | null) => void
+  subtitle?: string
+  /** Where a new task's deadline starts; Today when absent. */
+  initialDeadline?: Date
 }
 
 /** An existing deadline shows as a quick-pick only if it matches one exactly. */
-function initialMode(task: RingTask | null, now: Date): DeadlineMode {
-  if (!task) return 'today'
-  const ms = parseISO(task.deadline).getTime()
+function initialMode(deadline: Date | null, now: Date): DeadlineMode {
+  if (!deadline) return 'today'
+  const ms = deadline.getTime()
   return QUICK_PICKS.find((p) => resolveQuickPick(p.id, now).getTime() === ms)?.id ?? 'custom'
 }
 
@@ -66,8 +78,11 @@ export function TaskEditor({
   onDeleteSubtask,
   occurrenceReason,
   onOccurrenceReason,
+  subtitle,
+  initialDeadline,
 }: Props) {
   const rec = task?.recurrence ?? null
+  const startDeadline = task ? parseISO(task.deadline) : (initialDeadline ?? null)
   // Saving and cancelling close through the Modal so the exit animation runs;
   // going straight to `onClose` would unmount before the first frame.
   const closeRef: ModalCloseRef = useRef<(() => void) | null>(null)
@@ -75,9 +90,9 @@ export function TaskEditor({
 
   const [title, setTitle] = useState(task?.title ?? '')
   const [description, setDescription] = useState(task?.description ?? '')
-  const [mode, setMode] = useState<DeadlineMode>(() => initialMode(task, now))
+  const [mode, setMode] = useState<DeadlineMode>(() => initialMode(startDeadline, now))
   const [custom, setCustom] = useState(() =>
-    toDateTimeLocal(task ? parseISO(task.deadline) : resolveQuickPick('today', now)),
+    toDateTimeLocal(startDeadline ?? resolveQuickPick('today', now)),
   )
   const [importance, setImportance] = useState<Importance>(task?.importance ?? 0)
   const [goalIds, setGoalIds] = useState<string[]>(task?.goalIds ?? [])
@@ -165,6 +180,7 @@ export function TaskEditor({
   return (
     <Modal
       title={task ? 'Edit task' : 'New task'}
+      subtitle={subtitle}
       onClose={onClose}
       closeRef={closeRef}
       footer={
@@ -438,5 +454,81 @@ export function TaskEditor({
         </div>
       </form>
     </Modal>
+  )
+}
+
+interface ConnectedProps {
+  /** A task's id, or 'new' to create one. */
+  id: string
+  board: Board
+  now: Date
+  onClose: () => void
+  /** Fired with the minted id the moment a new task is saved, before the insert returns. */
+  onCreated?: (id: string, input: TaskInput) => void
+  subtitle?: string
+  initialDeadline?: Date
+}
+
+/**
+ * The editor wired to the board, so every app that edits tasks opens the same
+ * thing. Only the id is held, never a task object — the editor must see
+ * subtasks appear as they are added rather than a snapshot taken when it opened.
+ */
+export function ConnectedTaskEditor({ id, board, now, onClose, onCreated, subtitle, initialDeadline }: ConnectedProps) {
+  const createTask = useCreateTask()
+  const updateTask = useUpdateTask()
+  const deleteTask = useDeleteTask()
+  const addSubtask = useAddSubtask()
+  const toggleSubtask = useToggleSubtask()
+  const deleteSubtask = useDeleteSubtask()
+  const setOccurrenceReason = useSetOccurrenceReason()
+
+  const raw = id === 'new' ? undefined : board.tasks.find((t) => t.id === id)
+  const completedByTask = useMemo(() => indexOccurrences(board.occurrences), [board.occurrences])
+  const resolved = raw ? toRingTask(raw, now, completedByTask) : null
+  // Deleting from inside the editor drops the task from the cache at once; the
+  // last copy is held so the dialog can finish closing instead of vanishing.
+  const last = useRef(resolved)
+  if (resolved) last.current = resolved
+  const task = resolved ?? last.current
+
+  // A recurring task's missed-reason belongs to the day on show, not the rule,
+  // so it is looked up here rather than carried on the resolved task.
+  const occurrenceReason = task?.occurrenceDay
+    ? (board.occurrences.find((o) => o.taskId === task.id && o.date === task.occurrenceDay)
+        ?.failureReason ?? null)
+    : null
+
+  // Deleted elsewhere, or a spent rule: there is nothing left to edit.
+  if (id !== 'new' && !task) return null
+
+  return (
+    <TaskEditor
+      task={task}
+      goals={board.goals}
+      tags={board.tags}
+      now={now}
+      subtitle={subtitle}
+      initialDeadline={initialDeadline}
+      // Saving and deleting only mutate; the editor closes itself through the
+      // Modal so the exit animation is not cut short, and `onClose` is what
+      // finally unmounts it.
+      onSave={(input) => {
+        if (task) {
+          updateTask.mutate({ id: task.id, patch: input })
+          return
+        }
+        const newId = crypto.randomUUID()
+        createTask.mutate({ input, id: newId })
+        onCreated?.(newId, input)
+      }}
+      onDelete={task ? () => deleteTask.mutate(task.id) : null}
+      onClose={onClose}
+      onAddSubtask={(taskId, title) => addSubtask.mutate({ taskId, title })}
+      onToggleSubtask={(subId, done) => toggleSubtask.mutate({ id: subId, done })}
+      onDeleteSubtask={(subId) => deleteSubtask.mutate({ id: subId })}
+      occurrenceReason={occurrenceReason}
+      onOccurrenceReason={(taskId, date, reason) => setOccurrenceReason.mutate({ taskId, date, reason })}
+    />
   )
 }

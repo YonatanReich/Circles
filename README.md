@@ -66,6 +66,7 @@ anything is drawn:
 | `geometry.ts` | Turning task counts into radii, thicknesses and colours |
 | `stats.ts` | Scoring outcomes, expanding a rule into the days it fired, streaks |
 | `pomodoro.ts` | Day/week/month periods (weeks start Sunday), chart bars, the trend report |
+| `calendar.ts` | Wall-clock minute math, overlap lanes, the card tray, where a drag would land |
 
 Two decisions worth knowing about:
 
@@ -174,3 +175,39 @@ JSON-safe, carrying the same sentences the panel shows — derived from the
 rounds on demand rather than stored, so a round logged retroactively can never
 leave a saved trend wrong. `JSON.stringify(report)` plus the rounds' notes is
 the payload for the coaching LLM.
+
+## Calendar
+
+The third app: the agenda on top, the work to fit into it underneath. It opens
+on today and switches to the next 3 days or the week ahead.
+
+**Upgrading an existing database:** re-run `supabase/schema.sql`. It adds the
+`blocks` table and its policy; the app's first load fails until it exists.
+
+- **Cards.** One per task, defaulting to what is overdue, with tabs for every
+  open task by deadline and for recurring work. Drag a card onto the grid to
+  schedule it; tick its box to complete it, which takes it off the tray. Clicking
+  a card opens a small form — day, from, to — which does everything a drag does
+  and is the keyboard's way in.
+- **Blocks.** Drag a block to move it between times and days; stretch it from
+  either edge. Everything snaps to 15 minutes. Overlapping blocks share the
+  column in lanes. A block that ends after its task's deadline shows its time in
+  red. Click an empty slot to create a task already scheduled there.
+- **Touch.** Hold a card or block for a moment, then drag; a swipe still
+  scrolls. The bottom edge of a block is a grip a finger can take at once.
+
+A block is when you mean to do something, not when it is due, so it lives in
+its own table rather than on the task. A one-off task holds at most one block —
+dragging it again moves it. A recurring task holds one per day, and that block
+*is* the day's occurrence: it can only go on a day the rule fires, and ticking it
+completes that day.
+
+Drag and drop is pointer events, not HTML5 drag and drop, which has no touch
+support and draws a snapshot that cannot be styled. The card under the pointer
+is moved by writing its transform directly, so following the pointer re-renders
+nothing; React only hears about it when the snapped slot changes. Two things
+keep a drop from jittering. Board mutations share one TanStack scope, so their
+requests go out in order, and the board is refetched once, after the last one
+settles — refetching after each would undo the optimistic state of the ones
+still queued. And the dropped block is drawn from local state until the cache
+catches up, since the optimistic write lands a tick after the drop.

@@ -1,4 +1,4 @@
-import { format } from 'date-fns'
+import { format, isSameDay, parseISO } from 'date-fns'
 import { useMemo, type CSSProperties, type ReactNode } from 'react'
 import { roundsOn } from '../domain/pomodoro'
 import { buildRings, indexOccurrences } from '../domain/rings'
@@ -12,7 +12,7 @@ import styles from './Hub.module.css'
 interface Props {
   email: string | null
   timer: Pomodoro
-  onOpen: (app: 'tasks' | 'focus', from: Element) => void
+  onOpen: (app: 'tasks' | 'focus' | 'calendar', from: Element) => void
 }
 
 /**
@@ -34,6 +34,7 @@ export function Hub({ email, timer, onOpen }: Props) {
   }, [data, now])
 
   const roundsToday = data ? roundsOn(data.rounds, now).length : null
+  const plannedToday = data ? data.blocks.filter((b) => isSameDay(parseISO(b.start), now)).length : null
   const live = timer.phase !== 'idle'
 
   return (
@@ -80,6 +81,14 @@ export function Hub({ email, timer, onOpen }: Props) {
           progress={live ? timer.progress : undefined}
           rest={timer.phase === 'break'}
           onClick={(el) => onOpen('focus', el)}
+        />
+        <Orb
+          index={2}
+          name="Calendar"
+          value={plannedToday ?? '–'}
+          caption={plannedToday === 1 ? 'block planned today' : 'blocks planned today'}
+          glyph={<CalendarGlyph />}
+          onClick={(el) => onOpen('calendar', el)}
         />
       </div>
     </div>
@@ -132,6 +141,16 @@ function TasksGlyph() {
       <circle r={17} opacity={0.35} />
       <circle r={11.5} opacity={0.6} />
       <circle r={6} />
+    </svg>
+  )
+}
+
+/** The day as an agenda: three blocks of differing length inside the ring. */
+function CalendarGlyph() {
+  return (
+    <svg viewBox="-20 -20 40 40" aria-hidden="true">
+      <circle r={17} opacity={0.35} />
+      <path d="M-8 -6.5h12M-8 0h16M-8 6.5h8" strokeLinecap="round" />
     </svg>
   )
 }

@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Round } from '../domain/types'
+import type { Block, Round } from '../domain/types'
 import type { Board, GoalInput, TagInput, TaskInput } from './db'
 import { db } from './db'
+import { taskFromInput } from './localDb'
 
 const BOARD_KEY = ['board'] as const
 
@@ -19,6 +20,14 @@ export function useBoard() {
 /**
  * Every mutation writes the expected result into the cache first and rolls back
  * on failure. Ticking a task off has to feel like a checkbox, not a request.
+ *
+ * They share one scope, so the requests themselves go out one at a time and in
+ * order — a block placed on a task created a moment ago can never reach the
+ * server before its task does. The optimistic writes are not held back; only
+ * the network is. And the board is refetched once, after the last mutation in
+ * flight settles: refetching after each would overwrite the optimistic state
+ * of the ones still queued, and a block dragged twice in quick succession would
+ * jump back to its first position before landing on its second.
  */
 function useBoardMutation<TArgs>(
   mutationFn: (args: TArgs) => Promise<void>,
@@ -26,6 +35,8 @@ function useBoardMutation<TArgs>(
 ) {
   const qc = useQueryClient()
   return useMutation<void, Error, TArgs, { previous?: Board }>({
+    mutationKey: BOARD_KEY,
+    scope: { id: 'board' },
     mutationFn,
     onMutate: async (args) => {
       if (!optimistic) return {}
@@ -38,7 +49,7 @@ function useBoardMutation<TArgs>(
       if (context?.previous) qc.setQueryData<Board>(BOARD_KEY, context.previous)
     },
     onSettled: () => {
-      void qc.invalidateQueries({ queryKey: BOARD_KEY })
+      if (qc.isMutating({ mutationKey: BOARD_KEY }) === 1) void qc.invalidateQueries({ queryKey: BOARD_KEY })
     },
   })
 }
@@ -50,8 +61,12 @@ const mapTask = (board: Board, id: string, fn: (task: Board['tasks'][number]) =>
 
 // ---------------------------------------------------------------- tasks ---
 
+/** The id is minted by the caller, so the new task is in the cache before the insert returns. */
 export function useCreateTask() {
-  return useBoardMutation<TaskInput>((input) => db.createTask(input))
+  return useBoardMutation<{ input: TaskInput; id: string }>(
+    ({ input, id }) => db.createTask(input, id),
+    (board, { input, id }) => ({ ...board, tasks: [...board.tasks, taskFromInput(input, id)] }),
+  )
 }
 
 export function useUpdateTask() {
@@ -68,6 +83,7 @@ export function useDeleteTask() {
       ...board,
       tasks: board.tasks.filter((t) => t.id !== id),
       occurrences: board.occurrences.filter((o) => o.taskId !== id),
+      blocks: board.blocks.filter((b) => b.taskId !== id),
     }),
   )
 }
@@ -246,5 +262,24 @@ export function useDeleteRound() {
   return useBoardMutation<string>(
     (id) => db.deleteRound(id),
     (board, id) => ({ ...board, rounds: board.rounds.filter((r) => r.id !== id) }),
+  )
+}
+
+// --------------------------------------------------------------- blocks ---
+
+export function useSaveBlock() {
+  return useBoardMutation<Block>(
+    (block) => db.saveBlock(block),
+    (board, block) => ({
+      ...board,
+      blocks: [...board.blocks.filter((b) => b.id !== block.id), block],
+    }),
+  )
+}
+
+export function useDeleteBlock() {
+  return useBoardMutation<string>(
+    (id) => db.deleteBlock(id),
+    (board, id) => ({ ...board, blocks: board.blocks.filter((b) => b.id !== id) }),
   )
 }

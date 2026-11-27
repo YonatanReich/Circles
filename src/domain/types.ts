@@ -101,6 +101,21 @@ export interface Round {
 }
 
 /**
+ * A slot on the calendar: when you mean to work on a task, as distinct from
+ * when it is due. A one-off task holds at most one block — dragging it again
+ * moves it. A recurring task holds one per day, and that block stands for the
+ * occurrence on its day. The id is minted client-side, so placing a block is
+ * an idempotent upsert, the same as a round.
+ */
+export interface Block {
+  id: string
+  taskId: string
+  /** ISO instants; the end is on the same local day, or the next midnight. */
+  start: string
+  end: string
+}
+
+/**
  * One judged instance of a recurring task, keyed by local calendar day.
  *
  * `completedAt` set means the day was done. A row with `completedAt: null` and

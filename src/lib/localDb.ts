@@ -1,4 +1,4 @@
-import type { Goal, Occurrence, Round, Tag, Task } from '../domain/types'
+import type { Block, Goal, Occurrence, Round, Tag, Task } from '../domain/types'
 import type { Board, Db, GoalInput, TagInput, TaskInput } from './db'
 
 /**
@@ -8,7 +8,7 @@ import type { Board, Db, GoalInput, TagInput, TaskInput } from './db'
  */
 export const LOCAL_KEY = 'circles.board.v1'
 
-const empty = (): Board => ({ tasks: [], goals: [], tags: [], occurrences: [], rounds: [] })
+const empty = (): Board => ({ tasks: [], goals: [], tags: [], occurrences: [], rounds: [], blocks: [] })
 
 function read(): Board {
   try {
@@ -29,6 +29,7 @@ function read(): Board {
         failureReason: o.failureReason ?? null,
       })),
       rounds: parsed.rounds ?? [],
+      blocks: parsed.blocks ?? [],
     }
   } catch {
     return empty()
@@ -48,6 +49,30 @@ function mutate(fn: (board: Board) => void): Promise<void> {
 
 const uid = () => crypto.randomUUID()
 
+/** A new task as stored. Shared with the optimistic cache update so both agree on every default. */
+export function taskFromInput(input: TaskInput, id: string): Task {
+  return {
+    id,
+    title: input.title,
+    description: input.description,
+    deadline: input.deadline,
+    importance: input.importance,
+    completedAt: null,
+    recurrence: input.recurrence,
+    failureReason: null,
+    createdAt: new Date().toISOString(),
+    goalIds: input.goalIds,
+    tagIds: input.tagIds,
+    subtasks: (input.subtaskTitles ?? []).map((title, position) => ({
+      id: `${id}-s${position}`,
+      taskId: id,
+      title,
+      done: false,
+      position,
+    })),
+  }
+}
+
 function withTask(board: Board, id: string, fn: (task: Task) => void): void {
   const task = board.tasks.find((t) => t.id === id)
   if (task) fn(task)
@@ -60,30 +85,9 @@ export const localDb: Db = {
 
   load: () => Promise.resolve(read()),
 
-  createTask: (input: TaskInput) =>
+  createTask: (input: TaskInput, id = uid()) =>
     mutate((board) => {
-      const id = uid()
-      const task: Task = {
-        id,
-        title: input.title,
-        description: input.description,
-        deadline: input.deadline,
-        importance: input.importance,
-        completedAt: null,
-        recurrence: input.recurrence,
-        failureReason: null,
-        createdAt: new Date().toISOString(),
-        goalIds: input.goalIds,
-        tagIds: input.tagIds,
-        subtasks: (input.subtaskTitles ?? []).map((title, position) => ({
-          id: uid(),
-          taskId: id,
-          title,
-          done: false,
-          position,
-        })),
-      }
-      board.tasks.push(task)
+      board.tasks.push(taskFromInput(input, id))
     }),
 
   updateTask: (id: string, patch: Partial<TaskInput>) =>
@@ -104,6 +108,7 @@ export const localDb: Db = {
     mutate((board) => {
       board.tasks = board.tasks.filter((t) => t.id !== id)
       board.occurrences = board.occurrences.filter((o) => o.taskId !== id)
+      board.blocks = board.blocks.filter((b) => b.taskId !== id)
     }),
 
   setTaskCompleted: (id: string, completed: boolean) =>
@@ -219,5 +224,15 @@ export const localDb: Db = {
   deleteRound: (id: string) =>
     mutate((board) => {
       board.rounds = board.rounds.filter((r) => r.id !== id)
+    }),
+
+  saveBlock: (block: Block) =>
+    mutate((board) => {
+      board.blocks = [...board.blocks.filter((b) => b.id !== block.id), block]
+    }),
+
+  deleteBlock: (id: string) =>
+    mutate((board) => {
+      board.blocks = board.blocks.filter((b) => b.id !== id)
     }),
 }

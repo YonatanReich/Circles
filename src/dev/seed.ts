@@ -1,7 +1,7 @@
 import { addDays, endOfDay, set } from 'date-fns'
 import { combineDayAndTime, dayKey } from '../domain/deadlines'
 import { matchesRecurrence } from '../domain/recurrence'
-import type { Goal, Importance, Occurrence, Recurrence, Round, Tag, Task } from '../domain/types'
+import type { Block, Goal, Importance, Occurrence, Recurrence, Round, Tag, Task } from '../domain/types'
 import type { Board } from '../lib/db'
 import { LOCAL_KEY } from '../lib/localDb'
 
@@ -221,6 +221,26 @@ export function seedLocalBoard(now = new Date()): void {
     }),
   ]
 
-  const board: Board = { tasks, goals, tags, occurrences: history(tasks, now), rounds: focusHistory(now) }
+  // A planned day: a habit, a short call, a long block, one placed past its
+  // deadline (shown in red), and one tomorrow so the 3-day view has something.
+  const plan = (title: string, n: number, from: number, to: number): Block => {
+    const task = tasks.find((t) => t.title === title)!
+    return {
+      id: `block-${task.id}-${n}`,
+      taskId: task.id,
+      start: at(n, Math.floor(from), (from % 1) * 60).toISOString(),
+      end: at(n, Math.floor(to), (to % 1) * 60).toISOString(),
+    }
+  }
+  const blocks: Block[] = [
+    plan('Standup notes', 0, 9, 9.25),
+    plan('Call the bank', 0, 11, 11.5),
+    plan('Write release notes', 0, 14, 15.5),
+    plan('Reply to Dana', 0, 14.5, 15),
+    plan('Review the pull request', 1, 10, 12),
+    plan('Renew the domain', 1, 16, 16.5),
+  ]
+
+  const board: Board = { tasks, goals, tags, occurrences: history(tasks, now), rounds: focusHistory(now), blocks }
   localStorage.setItem(LOCAL_KEY, JSON.stringify(board))
 }
